@@ -1,7 +1,13 @@
 ---
-import { GITHUB_URL } from '../../consts';
+import { BILIBILI_URL, GITHUB_URL } from '../../consts';
 import HeaderLink from './HeaderLink.astro';
 import Icon from './Icon.astro';
+
+interface Props {
+  showHeaderContacts?: boolean;
+}
+
+const { showHeaderContacts = false } = Astro.props;
 ---
 
 <div class="social-links">
@@ -9,6 +15,17 @@ import Icon from './Icon.astro';
     <span class="sr-only">离子怪的 GitHub</span>
     <Icon name="github" />
   </HeaderLink>
+  {showHeaderContacts && (
+    <>
+      <HeaderLink href={BILIBILI_URL} target="_blank" rel="noopener noreferrer">
+        <span class="sr-only">离子怪的 Bilibili</span>
+        <Icon name="bilibili" />
+      </HeaderLink>
+      <span class="social-placeholder" role="img" aria-label="QQ（暂未设置链接）" title="QQ 暂未设置链接">
+        <Icon name="qq" />
+      </span>
+    </>
+  )}
 </div>
 
 <style>
@@ -16,5 +33,12 @@ import Icon from './Icon.astro';
     display: flex;
     justify-content: center;
     gap: 0.35em;
+  }
+
+  .social-placeholder {
+    display: inline-flex;
+    color: var(--foreground);
+    opacity: 0.72;
+    cursor: default;
   }
 </style>

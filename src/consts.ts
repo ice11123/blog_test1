@@ -5,6 +5,7 @@ export const SITE_START_DATE = new Date('2026-08-11');
 
 export const GITHUB_USERNAME = 'ice11123';
 export const GITHUB_URL = 'https://github.com/ice11123';
+export const BILIBILI_URL = 'https://www.bilibili.com/video/BV1GJ411x7h7/?spm_id_from=333.337.search-card.all.click';
 export const SITE_URL = 'https://ice11123.github.io/blog_test1/';
 
 // 留空时按文章目录名称自动排序；需要固定顺序时可在这里追加名称。
