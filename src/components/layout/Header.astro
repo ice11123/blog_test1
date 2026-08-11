@@ -148,8 +148,39 @@ import { withBase } from '../../lib/urls';
   }
 
   @media (max-width: 768px) {
+    nav {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas:
+        "brand social"
+        "links links";
+      gap: 0.35rem 0.5rem;
+    }
+
+    .nav-left {
+      grid-area: brand;
+      overflow: hidden;
+    }
+
+    .nav-left :global(a) {
+      padding-inline: 0;
+    }
+
+    .nav-right {
+      grid-area: social;
+      margin-right: 44px;
+    }
+
     #header-social {
-      display: none;
+      display: block;
+    }
+
+    #header-social :global(.social-links) {
+      gap: 0.15rem;
+    }
+
+    #header-social :global(a) {
+      padding-inline: 8px;
     }
 
     .header-toggle-btn {
@@ -163,33 +194,32 @@ import { withBase } from '../../lib/urls';
     }
 
     .nav-center {
+      grid-area: links;
       position: relative;
       left: auto;
       transform: none;
-      margin-left: auto;
-      margin-right: 44px;
-      gap: 0.15rem;
-      font-size: 0.8em;
-    }
-
-    nav {
-      gap: 0.15rem;
+      justify-self: center;
+      margin: 0;
+      gap: 0.75rem;
+      font-size: 0.85em;
     }
 
     h2 {
-      font-size: 0.75em;
+      overflow: hidden;
+      font-size: 0.8em;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
 
   @media (max-width: 400px) {
     h2 {
-      font-size: 0.65em;
+      font-size: 0.75em;
     }
 
     .nav-center {
-      font-size: 0.73em;
-      gap: 0.1rem;
-      margin-right: 38px;
+      font-size: 0.8em;
+      gap: 0.55rem;
     }
   }
 </style>
