@@ -1,0 +1,84 @@
+---
+import spoilerIcon from '/src/assets/icons/spoiler.svg?raw';
+
+interface Props {
+  hint?: string;
+}
+
+const { hint = '' } = Astro.props;
+---
+
+<div class="spoiler-wrapper">
+  <div class="spoiler-overlay">
+    <div class="spoiler-overlay-inner">
+      <span class="spoiler-icon" set:html={spoilerIcon}></span>
+      {hint && <span class="spoiler-hint">{hint}</span>}
+    </div>
+  </div>
+  <div class="spoiler-content">
+    <slot />
+  </div>
+</div>
+
+<style>
+  .spoiler-wrapper {
+    display: inline-block;
+    position: relative;
+    border-radius: 8px;
+    cursor: pointer;
+    vertical-align: baseline;
+  }
+
+  .spoiler-content {
+    filter: blur(8px);
+    transition: filter 0.35s ease;
+    user-select: none;
+  }
+
+  .spoiler-wrapper:hover .spoiler-content {
+    filter: blur(0);
+  }
+
+  .spoiler-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    transition: opacity 0.35s ease;
+  }
+
+  .spoiler-wrapper:hover .spoiler-overlay {
+    opacity: 0;
+  }
+
+  .spoiler-overlay-inner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--fg-muted, #888);
+  }
+
+  .spoiler-icon {
+    display: block;
+    width: 32px;
+    height: 32px;
+    opacity: 0.6;
+  }
+
+  .spoiler-icon :global(svg) {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .spoiler-hint {
+    margin-top: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    opacity: 0.7;
+  }
+</style>

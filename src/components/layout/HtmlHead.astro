@@ -1,0 +1,114 @@
+---
+import type { ImageMetadata } from 'astro';
+import { SITE_TITLE } from '../../consts';
+import { ClientRouter } from 'astro:transitions';
+import globalCss from '../../styles/global.scss?url';
+import sidebarSharedCss from '../../styles/sidebar-shared.scss?url';
+import sidebarTocCss from '../../styles/sidebar-toc.scss?url';
+import blogPostCss from '../../styles/blog-post.scss?url';
+import sidebarTreeCss from '../../styles/sidebar-tree.scss?url';
+import katexCss from 'katex/dist/katex.min.css?url';
+import { withBase } from '../../lib/urls';
+
+interface Props {
+	title: string;
+	description: string;
+	image?: string | ImageMetadata;
+}
+
+const canonicalURL = new URL(Astro.url.pathname, Astro.site);
+const { title, description, image } = Astro.props;
+
+let imageURL: string | undefined;
+if (image) {
+	if (typeof image === 'string') {
+		// 远程图片：直接转成完整URL
+		imageURL = new URL(withBase(image), Astro.site).href;
+	} else {
+		// 本地图片：取 src
+		imageURL = new URL(image.src, Astro.site).href;
+	}
+}
+---
+
+<!-- Global Metadata -->
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="icon" href={withBase('/favicon.svg')} type="image/svg+xml" />
+<link rel="sitemap" href={withBase('/sitemap-index.xml')} />
+<link
+	rel="alternate"
+	type="application/rss+xml"
+	title={SITE_TITLE}
+	href={new URL(withBase('/rss.xml'), Astro.site)}
+/>
+<meta name="generator" content={Astro.generator} />
+
+<!-- Canonical URL -->
+<link rel="canonical" href={canonicalURL} />
+
+	<!-- 样式表通过 <link> 加载，确保 dev 模式下视图过渡后样式不丢失 -->
+	<link rel="stylesheet" href={globalCss}>
+	<link rel="stylesheet" href={katexCss}>
+	<link rel="stylesheet" href={sidebarSharedCss}>
+	<link rel="stylesheet" href={sidebarTocCss}>
+	<link rel="stylesheet" href={blogPostCss}>
+	<link rel="stylesheet" href={sidebarTreeCss}>
+
+<!-- Primary Meta Tags -->
+<title>{title}</title>
+<meta name="title" content={title} />
+<meta name="description" content={description} />
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content="website" />
+<meta property="og:url" content={Astro.url} />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+{imageURL && <meta property="og:image" content={imageURL} />}
+
+<!-- Twitter -->
+<meta property="twitter:card" content="summary_large_image" />
+<meta property="twitter:url" content={Astro.url} />
+<meta property="twitter:title" content={title} />
+<meta property="twitter:description" content={description} />
+{imageURL && <meta property="twitter:image" content={imageURL} />}
+
+<ClientRouter fallback="animate" />
+
+<script is:inline>
+  (function() {
+    var validThemes = ['dark-blue','dark-green','dark-purple','light-blue','light-green','light-rose'];
+    var saved = localStorage.getItem('blog-theme');
+    if (saved && validThemes.indexOf(saved) !== -1) {
+      document.documentElement.setAttribute('data-theme', saved);
+    } else {
+      // 无保存记录时，跟随浏览器深浅色偏好
+      var prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+      document.documentElement.setAttribute('data-theme', prefersLight ? 'light-blue' : 'dark-blue');
+    }
+
+    // 恢复侧栏折叠状态。HTML 默认带 collapsed class，若用户曾打开侧栏则移除
+    try {
+      var leftRaw = localStorage.getItem('left-sidebar-state');
+      if (leftRaw && JSON.parse(leftRaw).collapsed === false) {
+        document.documentElement.classList.remove('left-sidebar-collapsed');
+      }
+    } catch (_) {}
+
+    try {
+      var rightRaw = localStorage.getItem('blog-sidebar-collapsed');
+      var isMobileViewport = window.matchMedia('(max-width: 760px)').matches;
+      // 未保存偏好时：桌面端默认展开，移动端默认收起，避免目录抽屉遮挡正文。
+      if (rightRaw === 'false' || (rightRaw === null && !isMobileViewport)) {
+        document.documentElement.classList.remove('sidebar-collapsed');
+      }
+    } catch (_) {}
+
+    try {
+      if (localStorage.getItem('header-collapsed') === 'true') {
+        document.documentElement.classList.add('header-collapsed');
+      }
+    } catch (_) {}
+  })();
+</script>

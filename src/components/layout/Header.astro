@@ -1,0 +1,276 @@
+---
+import { SITE_TITLE } from '../../consts';
+import HeaderLink from '../ui/HeaderLink.astro';
+import SocialLinks from '../ui/SocialLinks.astro';
+import { withBase } from '../../lib/urls';
+---
+
+<header id="site-header">
+  <nav>
+    <div class="nav-left">
+      <h2><HeaderLink href={withBase('/')}>{SITE_TITLE}</HeaderLink></h2>
+    </div>
+    <div class="nav-center">
+      <HeaderLink href={withBase('/')}>主页</HeaderLink>
+      <HeaderLink href={withBase('/blog/')}>博客</HeaderLink>
+      <HeaderLink href={withBase('/friends/')}>友链</HeaderLink>
+      <HeaderLink href={withBase('/about/')}>关于</HeaderLink>
+      <span class="nav-underline"></span>
+    </div>
+    <div class="nav-right">
+      <div id="header-social">
+        <SocialLinks/>
+      </div>
+    </div>
+  </nav>
+</header>
+
+<button id="header-toggle-btn" class="header-toggle-btn" aria-label="折叠顶栏" type="button">
+  <svg class="header-toggle-arrow" width="10" height="10" viewBox="0 0 12 12" aria-hidden="true">
+    <path d="M2 5 L6 8 L10 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+</button>
+
+<style>
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    padding-top: 14px;
+    padding-bottom: 4px;
+    margin: 0 6px 6px;
+    background: var(--background);
+  }
+
+  html.header-collapsed header {
+    padding-top: 0;
+  }
+
+  nav {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    transition: visibility 0s 0.25s, max-height 0.25s ease;
+  }
+
+  h2 {
+    margin: 0;
+    font-size: 1em;
+  }
+
+  .nav-left,
+  .nav-right {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    min-width: 0;
+  }
+
+  .nav-right {
+    gap: 0.75rem;
+    justify-content: flex-end;
+  }
+
+  /* 绝对居中 — 不受左右内容宽度影响 */
+  .nav-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 0.5rem;
+    white-space: nowrap;
+    --ul-left: 0px;
+    --ul-width: 0px;
+  }
+
+  /* 滑动下划线指示器 */
+  .nav-underline {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: var(--ul-width);
+    height: 4px;
+    background: var(--link-underline-color, var(--accent));
+    border-radius: 999px;
+    transform: translateX(var(--ul-left));
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .nav-center.underline-visible .nav-underline {
+    opacity: 1;
+  }
+
+  /* 吸顶按钮 — 紧贴视口顶部 */
+  .header-toggle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1001;
+    background: rgba(var(--background-rgb), 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--border-light);
+    border-top: none;
+    border-radius: 0 0 12px 12px;
+    padding: 4px 24px;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+  }
+
+  .header-toggle-btn:hover {
+    border-color: var(--accent);
+  }
+
+  .header-toggle-arrow {
+    display: block;
+    color: var(--foreground);
+    transition: transform 0.25s ease;
+    transform: rotate(180deg);
+  }
+
+  /* 折叠：nav 隐藏 */
+  html.header-collapsed nav {
+    visibility: hidden;
+    max-height: 0;
+    overflow: hidden;
+  }
+
+  /* 折叠：箭头转向 */
+  html.header-collapsed .header-toggle-arrow {
+    transform: rotate(0deg);
+  }
+
+  @media (max-width: 768px) {
+    #header-social {
+      display: none;
+    }
+
+    .header-toggle-btn {
+      left: auto;
+      right: 4px;
+      transform: none;
+      padding: 6px 12px;
+      min-width: 36px;
+      min-height: 32px;
+      border-radius: 0 0 8px 12px;
+    }
+
+    .nav-center {
+      position: relative;
+      left: auto;
+      transform: none;
+      margin-left: auto;
+      margin-right: 44px;
+      gap: 0.15rem;
+      font-size: 0.8em;
+    }
+
+    nav {
+      gap: 0.15rem;
+    }
+
+    h2 {
+      font-size: 0.75em;
+    }
+  }
+
+  @media (max-width: 400px) {
+    h2 {
+      font-size: 0.65em;
+    }
+
+    .nav-center {
+      font-size: 0.73em;
+      gap: 0.1rem;
+      margin-right: 38px;
+    }
+  }
+</style>
+
+<script>
+  // @ts-nocheck -- 保留授权源码中的浏览器交互脚本，由运行时 DOM 保护保证安全。
+  const HEADER_KEY = 'header-collapsed';
+
+  function applyHeaderState(collapsed: boolean) {
+    if (collapsed) {
+      document.documentElement.classList.add('header-collapsed');
+    } else {
+      document.documentElement.classList.remove('header-collapsed');
+    }
+  }
+
+  function initHeader(): void {
+    let collapsed = false;
+    try { collapsed = localStorage.getItem(HEADER_KEY) === 'true'; } catch {}
+    applyHeaderState(collapsed);
+  }
+
+  // 事件委托，避免视图过渡后按钮引用失效
+  document.addEventListener('click', (e: Event) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('#header-toggle-btn')) {
+      const collapsed = document.documentElement.classList.toggle('header-collapsed');
+      try { localStorage.setItem(HEADER_KEY, String(collapsed)); } catch {}
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', initHeader);
+  document.addEventListener('astro:page-load', initHeader);
+  document.addEventListener('astro:after-swap', initHeader);
+</script>
+
+<script>
+  // @ts-nocheck -- 保留授权源码中的浏览器交互脚本，由运行时 DOM 保护保证安全。
+  // 顶栏中间导航 — 滑动下划线（从旧位置滑到新 active 链接）
+  function initNavUnderline(): void {
+    const center = document.querySelector('.nav-center');
+    if (!center) return;
+    const active = center.querySelector('a.active') as HTMLElement | null;
+    if (!active) {
+      center.classList.remove('underline-visible');
+      return;
+    }
+
+    const linkRect = active.getBoundingClientRect();
+    const centerRect = center.getBoundingClientRect();
+    const newLeft = linkRect.left - centerRect.left;
+    const newWidth = linkRect.width;
+
+    const prevLeft = sessionStorage.getItem('nav-ul-left');
+    const prevWidth = sessionStorage.getItem('nav-ul-width');
+
+    if (prevLeft !== null && prevWidth !== null) {
+      // 从旧位置瞬间起步（无动画）
+      center.style.setProperty('--ul-left', `${prevLeft}px`);
+      center.style.setProperty('--ul-width', `${prevWidth}px`);
+      center.classList.add('underline-visible');
+
+      // 强排，确保起步位置已生效
+      const ul = center.querySelector('.nav-underline') as HTMLElement;
+      if (ul) {
+        ul.getBoundingClientRect();
+        ul.style.transition = 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), width 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+      }
+    } else {
+      center.classList.add('underline-visible');
+    }
+
+    requestAnimationFrame(() => {
+      center.style.setProperty('--ul-left', `${newLeft}px`);
+      center.style.setProperty('--ul-width', `${newWidth}px`);
+    });
+
+    sessionStorage.setItem('nav-ul-left', String(newLeft));
+    sessionStorage.setItem('nav-ul-width', String(newWidth));
+  }
+
+  document.addEventListener('DOMContentLoaded', initNavUnderline);
+  document.addEventListener('astro:page-load', initNavUnderline);
+</script>

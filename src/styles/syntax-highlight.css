@@ -1,0 +1,29 @@
+/* ===== 代码语法高亮颜色 =====
+   Each token type has a distinct hue so code is readable.
+   Dark themes use bright pastels; light themes use deeper saturated colors. */
+
+/* ----- 暗色主题（默认 + dark-*） ----- */
+:root,
+html[data-theme="dark-green"],
+html[data-theme="dark-purple"] {
+  --syn-keyword: #c792ea;
+  --syn-string: #c3e88d;
+  --syn-function: #ffcb6b;
+  --syn-comment: #676e95;
+  --syn-number: #f78c6c;
+  --syn-type: #82aaff;
+  --syn-punctuation: #89ddff;
+}
+
+/* ----- 亮色主题（light-*） ----- */
+html[data-theme="light-blue"],
+html[data-theme="light-green"],
+html[data-theme="light-rose"] {
+  --syn-keyword: #6d28d9;
+  --syn-string: #166534;
+  --syn-function: #92400e;
+  --syn-comment: #4b5563;
+  --syn-number: #9a3412;
+  --syn-type: #1d4ed8;
+  --syn-punctuation: #374151;
+}

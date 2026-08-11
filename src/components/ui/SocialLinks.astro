@@ -1,0 +1,20 @@
+---
+import { GITHUB_URL } from '../../consts';
+import HeaderLink from './HeaderLink.astro';
+import Icon from './Icon.astro';
+---
+
+<div class="social-links">
+  <HeaderLink href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
+    <span class="sr-only">离子怪的 GitHub</span>
+    <Icon name="github" />
+  </HeaderLink>
+</div>
+
+<style>
+  .social-links {
+    display: flex;
+    justify-content: center;
+    gap: 0.35em;
+  }
+</style>

@@ -1,0 +1,88 @@
+/* ===== 亮色主题共享变量 + 亮蓝主题 ===== */
+
+/* 所有亮色主题的公共变量 */
+html[data-theme^="light"] {
+  --box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08),
+                0 8px 24px rgba(0, 0, 0, 0.10),
+                0 16px 32px rgba(0, 0, 0, 0.10);
+  --hero-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  --background-dark: #ffffff;
+  --tag-count-bg: rgba(0, 0, 0, 0.06);
+  --browser-bg: #ffffff;
+  --browser-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  --browser-frame-bg: #ffffff;
+
+  /* GitHub 提示块颜色（亮色主题） */
+  --alert-note: #0969da;
+  --alert-note-bg: rgba(9, 105, 218, 0.06);
+  --alert-note-border: #0969da;
+  --alert-tip: #1a7f37;
+  --alert-tip-bg: rgba(26, 127, 55, 0.06);
+  --alert-tip-border: #1a7f37;
+  --alert-important: #8250df;
+  --alert-important-bg: rgba(130, 80, 223, 0.06);
+  --alert-important-border: #8250df;
+  --alert-warning: #9a6700;
+  --alert-warning-bg: rgba(154, 103, 0, 0.06);
+  --alert-warning-border: #9a6700;
+  --alert-caution: #cf222e;
+  --alert-caution-bg: rgba(207, 34, 46, 0.06);
+  --alert-caution-border: #cf222e;
+}
+
+/* 亮蓝主题特有变量 */
+html[data-theme="light-blue"] {
+  --background: #f4f6fb;
+  --background-light: #e8ecf4;
+  --accent: #4565d8;
+  --accent-dark: #6b85e6;
+  --accent-light: #3451c0;
+  --foreground: #1a1f36;
+  --foreground-dark: #3c4257;
+  --foreground-light: #0f1419;
+  --muted: #e1e7f5;
+  --muted-dark: #eef1fa;
+  --muted-light: #d3daee;
+  --border: #c5cee2;
+  --border-dark: #d8dff0;
+  --border-light: #b0bbd4;
+
+  --accent-rgb: 69, 101, 216;
+  --accent-dark-rgb: 107, 133, 230;
+  --accent-light-rgb: 52, 81, 192;
+  --foreground-rgb: 26, 31, 54;
+  --foreground-dark-rgb: 60, 66, 87;
+  --foreground-light-rgb: 15, 20, 25;
+  --background-rgb: 244, 246, 251;
+  --background-dark-rgb: 255, 255, 255;
+  --background-light-rgb: 232, 236, 244;
+  --muted-rgb: 225, 231, 245;
+  --muted-dark-rgb: 238, 241, 250;
+  --muted-light-rgb: 211, 218, 238;
+  --border-rgb: 197, 206, 226;
+  --border-dark-rgb: 216, 223, 240;
+  --border-light-rgb: 176, 187, 212;
+
+  --scrollbar-track: #e8ecf4;
+  --scrollbar-thumb: #b0bbd4;
+  --link-underline-color: #3451c0;
+  --backdrop-rgb: 230, 233, 240;
+  --header-link-text: #3c4257;
+  --header-link-hover: #1a1f36;
+
+  --browser-border: #d3daee;
+  --browser-chrome-top: #f0f2f8;
+  --browser-chrome-bottom: #e8ecf4;
+  --browser-input-bg: #f4f6fb;
+  --browser-input-border: #c5cee2;
+  --browser-text: #1a1f36;
+  --browser-placeholder: #95a0b8;
+  --browser-accent: #4565d8;
+  --browser-accent-hover: #3451c0;
+  --browser-accent-rgb: 69, 101, 216;
+
+  --plot-bg: #f4f6fb;
+  --plot-axis-color: #1a1f36;
+  --plot-border: #c5cee2;
+  --plot-default-color: #4565d8;
+}

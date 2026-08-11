@@ -1,0 +1,243 @@
+---
+// GitHub 个人语言构成 — SSR 骨架，客户端获取并渲染 SVG 饼图
+import { GITHUB_USERNAME } from '../../consts';
+
+const LANG_COLORS: Record<string, string> = {
+  TypeScript: '#3178c6',
+  JavaScript: '#f1e05a',
+  Python: '#3572A5',
+  HTML: '#e34c26',
+  CSS: '#563d7c',
+  SCSS: '#c6538c',
+  Astro: '#ff5a03',
+  MDX: '#fcb32c',
+  Markdown: '#083fa1',
+  JSON: '#292929',
+  YAML: '#cb171e',
+  Shell: '#89e051',
+  Dockerfile: '#384d54',
+  Go: '#00ADD8',
+  Rust: '#dea584',
+  Java: '#b07219',
+  C: '#555555',
+  'C++': '#f34b7d',
+  'C#': '#178600',
+  Ruby: '#701516',
+  PHP: '#4F5D95',
+  Swift: '#F05138',
+  Kotlin: '#A97BFF',
+  Vue: '#41b883',
+  Svelte: '#ff3e00',
+  Lua: '#000080',
+};
+---
+
+<div id="ghl-root" data-colors={JSON.stringify(LANG_COLORS)} data-username={GITHUB_USERNAME}>
+  <div class="lang-card stat-card fade-up-on-scroll">
+    <div class="lang-title">我的 GitHub 语言构成</div>
+
+    <!-- 骨架 -->
+    <div class="ghl-skeleton" id="ghl-skeleton">
+      <div class="lang-chart-row">
+        <div class="ghl-sk-pie"></div>
+        <div class="lang-legend">
+          <div class="ghl-sk-item"></div>
+          <div class="ghl-sk-item"></div>
+          <div class="ghl-sk-item"></div>
+          <div class="ghl-sk-item"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 真实内容 -->
+    <div id="ghl-content" style="display:none;">
+      <div class="lang-chart-row">
+        <svg class="lang-pie" viewBox="0 0 200 200" id="ghl-pie" aria-label="GitHub 个人语言构成饼图"></svg>
+        <div class="lang-legend" id="ghl-legend"></div>
+      </div>
+      <div class="lang-total" id="ghl-total"></div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .lang-card {
+    padding: 1.5rem;
+    margin: 0 auto;
+    max-width: 760px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .lang-title {
+    text-align: center;
+    font-size: 0.9rem;
+    color: var(--foreground-dark);
+    margin-bottom: 1rem;
+  }
+
+  .ghl-skeleton {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .ghl-sk-pie {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    background: rgba(var(--muted-rgb), 0.4);
+    animation: shimmer 1.5s infinite;
+  }
+
+  .ghl-sk-item {
+    width: 90px;
+    height: 12px;
+    border-radius: 6px;
+    background: rgba(var(--muted-rgb), 0.4);
+    animation: shimmer 1.5s infinite;
+  }
+
+  .ghl-sk-item:nth-child(2) { animation-delay: 0.1s; width: 70px; }
+  .ghl-sk-item:nth-child(3) { animation-delay: 0.2s; width: 80px; }
+  .ghl-sk-item:nth-child(4) { animation-delay: 0.3s; width: 60px; }
+
+  @keyframes shimmer {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.8; }
+  }
+</style>
+
+<script>
+  // @ts-nocheck -- 这是独立运行的浏览器端统计脚本，包含完备的失败降级。
+  (function() {
+    var root = document.getElementById('ghl-root');
+    if (!root) return;
+    var USERNAME = root.getAttribute('data-username') || 'ice11123';
+    var LANG_COLORS = JSON.parse(root.getAttribute('data-colors') || '{}');
+
+    var PI = Math.PI;
+    var CX = 100, CY = 100, R = 85, INNER_R = 48;
+
+    function fmt(n) {
+      return n >= 10000 ? (n / 10000).toFixed(1) + '万' : String(n);
+    }
+
+    function getColor(name) {
+      if (LANG_COLORS[name]) return LANG_COLORS[name];
+      var hash = 0;
+      for (var i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      return 'hsl(' + (Math.abs(hash) % 360) + ', 55%, 55%)';
+    }
+
+    function slicePath(startAngle, endAngle) {
+      var x1 = CX + R * Math.cos(startAngle);
+      var y1 = CY + R * Math.sin(startAngle);
+      var x2 = CX + R * Math.cos(endAngle);
+      var y2 = CY + R * Math.sin(endAngle);
+      var large = endAngle - startAngle > PI ? 1 : 0;
+      return 'M' + CX + ',' + CY + ' L' + x1.toFixed(2) + ',' + y1.toFixed(2) + ' A' + R + ',' + R + ' 0 ' + large + ' 1 ' + x2.toFixed(2) + ',' + y2.toFixed(2) + ' Z';
+    }
+
+    function renderPie(entries, totalBytes) {
+      var pie = document.getElementById('ghl-pie');
+      if (!pie) return;
+      pie.innerHTML = '';
+      var currentAngle = -PI / 2;
+      for (var i = 0; i < entries.length; i++) {
+        var pct = Math.round((entries[i].bytes / totalBytes) * 100);
+        if (pct < 1) pct = 1;
+        var sliceAngle = (pct / 100) * 2 * PI;
+        var start = currentAngle;
+        currentAngle += sliceAngle;
+
+        var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', slicePath(start, currentAngle));
+        path.setAttribute('fill', getColor(entries[i].name));
+        path.setAttribute('stroke', 'var(--background)');
+        path.setAttribute('stroke-width', '1.5');
+
+        var title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+        title.textContent = entries[i].name + ': ' + fmt(entries[i].bytes) + ' bytes (' + pct + '%)';
+        path.appendChild(title);
+        pie.appendChild(path);
+      }
+
+      var center = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      center.setAttribute('cx', String(CX));
+      center.setAttribute('cy', String(CY));
+      center.setAttribute('r', String(INNER_R));
+      center.setAttribute('fill', 'var(--background)');
+      pie.appendChild(center);
+
+      var legend = document.getElementById('ghl-legend');
+      if (!legend) return;
+      legend.innerHTML = '';
+      for (var i = 0; i < entries.length; i++) {
+        var pct = Math.round((entries[i].bytes / totalBytes) * 100);
+        var item = document.createElement('div');
+        item.className = 'lang-legend-item';
+        item.innerHTML =
+          '<span class="lang-legend-dot" style="background:' + getColor(entries[i].name) + ';"></span>' +
+          '<span class="lang-legend-name">' + entries[i].name + '</span>' +
+          '<span class="lang-legend-pct">' + pct + '%</span>';
+        legend.appendChild(item);
+      }
+
+      var total = document.getElementById('ghl-total');
+      if (total) total.textContent = '共 ' + fmt(totalBytes) + ' bytes';
+    }
+
+    function showContent() {
+      var skeleton = document.getElementById('ghl-skeleton');
+      var content = document.getElementById('ghl-content');
+      if (skeleton) skeleton.style.display = 'none';
+      if (content) content.style.display = '';
+    }
+
+    async function load() {
+      try {
+        var reposRes = await fetch('https://api.github.com/users/' + USERNAME + '/repos?per_page=100&type=owner');
+        if (!reposRes.ok) throw new Error('repos HTTP ' + reposRes.status);
+        var repos = await reposRes.json();
+        if (!Array.isArray(repos) || repos.length === 0) throw new Error('no repos');
+
+        var langTotals = {};
+        var ownRepos = repos.filter(function(r) { return !r.fork; });
+
+        for (var i = 0; i < ownRepos.length; i++) {
+          try {
+            var res = await fetch(ownRepos[i].languages_url);
+            if (!res.ok) continue;
+            var langs = await res.json();
+            for (var name in langs) {
+              if (!langs.hasOwnProperty(name)) continue;
+              langTotals[name] = (langTotals[name] || 0) + langs[name];
+            }
+          } catch (e) {
+            // skip failed repo language fetches
+          }
+        }
+
+        var entries = [];
+        for (var name in langTotals) {
+          if (!langTotals.hasOwnProperty(name)) continue;
+          entries.push({ name: name, bytes: langTotals[name] });
+        }
+        entries.sort(function(a, b) { return b.bytes - a.bytes; });
+        if (entries.length === 0) throw new Error('no languages');
+
+        var totalBytes = entries.reduce(function(s, e) { return s + e.bytes; }, 0);
+        var topEntries = entries.slice(0, 8);
+
+        renderPie(topEntries, totalBytes);
+        showContent();
+      } catch (err) {
+        console.warn('GitHub languages fetch failed:', err.message);
+      }
+    }
+
+    load();
+    document.addEventListener('astro:page-load', load);
+  })();
+</script>

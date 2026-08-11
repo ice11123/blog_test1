@@ -1,0 +1,40 @@
+---
+import { GITHUB_URL, SITE_AUTHOR, SITE_DESCRIPTION, SITE_START_DATE, SITE_TITLE } from '../consts';
+import Layout from '../layouts/BlogPost.astro';
+import JsonLd from '../components/blog/JsonLd.astro';
+import { withBase } from '../lib/urls';
+
+const aboutUrl = new URL(withBase('/about/'), Astro.site).href;
+const profilePageLd = {
+  '@context': 'https://schema.org',
+  '@type': 'ProfilePage',
+  url: aboutUrl,
+  mainEntity: {
+    '@type': 'Person',
+    name: SITE_AUTHOR,
+    url: GITHUB_URL,
+  },
+};
+---
+
+<Layout
+  title={`关于 - ${SITE_TITLE}`}
+  description={SITE_DESCRIPTION}
+  pubDate={SITE_START_DATE}
+>
+  <JsonLd slot="head" data={profilePageLd} />
+
+  <h2>关于我</h2>
+  <p>你好，我是<strong>{SITE_AUTHOR}</strong>。</p>
+  <p>{SITE_DESCRIPTION}</p>
+
+  <h2>联系与主页</h2>
+  <p>
+    GitHub：<a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">{GITHUB_URL}</a>
+  </p>
+
+  <h2>关于本站</h2>
+  <p>
+    本站使用 Astro 构建，文章采用 Markdown 或 MDX 编写，并通过 GitHub Pages 自动部署。
+  </p>
+</Layout>

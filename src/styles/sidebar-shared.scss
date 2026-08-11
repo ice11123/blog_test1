@@ -1,0 +1,120 @@
+@layer components {
+  :root {
+    --sidebar-width: 240px;
+    --gutter-width: 32px;
+  }
+
+  @media (max-width: 1399px) and (min-width: 1100px) {
+    :root { --sidebar-width: 220px; }
+  }
+
+  @media (max-width: 1099px) and (min-width: 900px) {
+    :root { --sidebar-width: 160px; }
+  }
+
+  /* 共享的侧栏结构 */
+  .sidebar-panel {
+    width: var(--sidebar-width);
+    font-size: var(--font-size-base);
+    flex-shrink: 0;
+    position: sticky;
+    top: 4rem;
+    max-height: calc(100vh - 5.5rem);
+    display: flex;
+    flex-direction: column;
+    background: transparent;
+    contain: layout style;
+  }
+
+  /* 侧栏内容 transform 滑动（GPU 合成，不触发重排） */
+  .left-sidebar > .sidebar-inner,
+  .right-sidebar > * {
+    transform: translateX(0);
+    transition: transform var(--transition-medium);
+  }
+
+  /* 左侧栏折叠 — width 延迟收窄，transform 先滑出 */
+  @media (min-width: 900px) {
+    html.left-sidebar-collapsed .left-sidebar {
+      width: 0 !important;
+      visibility: hidden;
+      transition: width 0s 0.25s, visibility 0s 0.25s;
+    }
+
+    html.left-sidebar-collapsed .left-sidebar > .sidebar-inner {
+      transform: translateX(calc(var(--sidebar-width) * -1 - 8px));
+    }
+
+    /* 工具栏跟随侧栏收起（避免 transform 破坏 backdrop-filter） */
+    html.left-sidebar-collapsed .left-sidebar > .ls-toolbar {
+      opacity: 0;
+    }
+  }
+
+  /* 右侧栏折叠 — width 延迟收窄，transform 先滑出 */
+  html.sidebar-collapsed .right-sidebar {
+    width: 0 !important;
+    visibility: hidden;
+    transition: width 0s 0.25s, visibility 0s 0.25s;
+  }
+
+  html.sidebar-collapsed .right-sidebar > * {
+    transform: translateX(calc(var(--sidebar-width) + 8px));
+  }
+
+  /* 间隙 — 位于侧栏和正文之间，容纳折叠按钮 */
+  .sidebar-gutter {
+    width: var(--gutter-width);
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  /* 折叠按钮 — fixed 垂直居中，始终吸附屏幕边缘 */
+  .sidebar-toggle-btn {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: var(--z-toggle-btn);
+    background: rgba(var(--background-rgb), var(--alpha-sidebar-glass));
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-3xl);
+    padding: 20px 6px;
+    cursor: pointer;
+    box-shadow: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color var(--transition-base);
+  }
+
+  .sidebar-toggle-btn:hover {
+    border-color: var(--accent);
+  }
+
+  .sidebar-toggle-btn:active {
+    transform: translateY(-50%) scale(0.96);
+  }
+
+  /* 间隙箭头 — SVG chevron，旋转基点天然居中 */
+  .gutter-arrow {
+    display: block;
+    color: var(--foreground);
+    transition: transform var(--transition-medium);
+  }
+
+  /* 左按钮：吸附屏幕左边缘 */
+  #toggleLeftSidebarBtn {
+    left: 0;
+    border-radius: 0 var(--radius-xl) var(--radius-xl) 0;
+    border-left: none;
+  }
+
+  /* 右按钮：吸附屏幕右边缘 */
+  #toggleSidebarBtn {
+    right: 0;
+    border-radius: var(--radius-xl) 0 0 var(--radius-xl);
+    border-right: none;
+  }
+}
