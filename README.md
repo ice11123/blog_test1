@@ -57,7 +57,7 @@ tags: ['标签']
 
 站名支持在 5 秒内连续点击 5 次打开 `/admin/` 管理台原型。当前版本只把文章草稿保存到浏览器 `localStorage`，不写入 GitHub，也不具备真正的身份认证；页面会明确显示此安全边界。
 
-管理台已预留“同步到正式网站”按钮。默认按钮为禁用状态；完成独立后端（推荐 Cloudflare Workers + GitHub App）后，在构建环境设置 `PUBLIC_ADMIN_SYNC_API_URL` 即可启用。接口安全边界和请求格式见 [`docs/admin-sync.md`](docs/admin-sync.md)。
+管理台已支持云端“发布到正式网站”按钮。部署 Cloudflare Worker 后，在构建环境设置 `PUBLIC_ADMIN_SYNC_API_URL`，即可从任意设备使用 GitHub 授权一键发布。Worker 配置见 [`worker/README.md`](worker/README.md)，接口安全边界和请求格式见 [`docs/admin-sync.md`](docs/admin-sync.md)。
 
 ## 本地一键发布文章（无需 API）
 

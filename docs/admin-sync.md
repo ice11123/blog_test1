@@ -1,6 +1,8 @@
 # 管理台同步到 GitHub 的接口约定
 
-管理台目前默认只把草稿保存到浏览器 `localStorage`。只有配置 `PUBLIC_ADMIN_SYNC_API_URL` 后，“同步到正式网站”按钮才会启用。
+管理台目前默认只把草稿保存到浏览器 `localStorage`。配置 `PUBLIC_ADMIN_SYNC_API_URL` 后，“发布到正式网站”按钮会通过 Cloudflare Worker 完成 GitHub 登录和仓库提交。
+
+Worker 部署说明见 [`worker/README.md`](../worker/README.md)。
 
 ## 为什么需要独立后端
 
@@ -64,4 +66,3 @@ PUBLIC_ADMIN_SYNC_API_URL=YOUR_DEPLOYED_SYNC_API_URL
 ```
 
 不要把 GitHub Personal Access Token、GitHub App 私钥或真实服务端密码写入 `.env` 的 `PUBLIC_` 变量，也不要提交到仓库。
-

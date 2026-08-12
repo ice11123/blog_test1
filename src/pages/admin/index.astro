@@ -3,7 +3,7 @@ import { getCollection } from 'astro:content';
 import Header from '../../components/layout/Header.astro';
 import Footer from '../../components/layout/Footer.astro';
 import HtmlHead from '../../components/layout/HtmlHead.astro';
-import { SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
+import { ADMIN_SYNC_API_URL, SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
 import type { AdminPostDraft } from '../../lib/adminDrafts';
 import { resolveDirs } from '../../lib/utils';
 
@@ -43,7 +43,7 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
         </div>
       </section>
 
-      <section id="admin-app" data-initial-drafts={JSON.stringify(initialDrafts)}>
+      <section id="admin-app" data-initial-drafts={JSON.stringify(initialDrafts)} data-sync-endpoint={ADMIN_SYNC_API_URL}>
         <div class="admin-locked" data-locked>
           <h2>管理台已锁定</h2>
           <p>请从顶部站名连续点击 5 次，再输入管理密码。</p>
@@ -59,7 +59,7 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
               <button type="button" data-new>新建文章</button>
               <button type="button" data-reset>恢复仓库初始内容</button>
               <button type="button" data-export>导出当前文件</button>
-              <button type="button" class="sync-button" data-local-publish title="下载文章并复制本地发布命令">本地发布</button>
+              <button type="button" class="sync-button" data-cloud-publish disabled={!ADMIN_SYNC_API_URL} title={ADMIN_SYNC_API_URL ? '通过云端 API 提交到 GitHub 并触发部署' : '尚未配置云端 API'}>发布到正式网站</button>
             </div>
           </div>
 
@@ -87,7 +87,7 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
                 <button type="button" data-delete>删除当前草稿</button>
                 <span class="edited-at" data-edited-at>尚未修改</span>
               </div>
-              <p class="sync-hint" data-sync-hint>编辑完成后点击“本地发布”：先下载文章文件，再在仓库目录运行发布命令，检查、提交并推送到正式网站。</p>
+              <p class="sync-hint" data-sync-hint>{ADMIN_SYNC_API_URL ? '首次发布会跳转 GitHub 授权；授权账号必须是 ice11123。' : '尚未配置云端 API。配置后可从任意设备登录 GitHub 并一键发布。'}</p>
             </form>
 
             <article class="admin-preview" aria-live="polite">
@@ -228,21 +228,24 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
     app.querySelector('[data-delete]')?.addEventListener('click', () => { if (!selectedId || !confirm('确定删除当前本地草稿吗？')) return; removeDraft(selectedId); drafts = readDrafts(); selectedId = drafts[0]?.id || ''; renderList(); loadForm(); setStatus('已删除本地草稿'); });
     app.querySelector('[data-reset]')?.addEventListener('click', () => { if (!confirm('将清除本浏览器中的全部草稿并恢复仓库初始内容，继续吗？')) return; resetDrafts(); drafts = readDrafts(); selectedId = drafts[0]?.id || ''; renderList(); loadForm(); setStatus('已恢复初始内容'); });
     app.querySelector('[data-export]')?.addEventListener('click', () => { const post = current(); if (!post) return; const blob = new Blob([draftToMarkdown(collect())], { type: 'text/markdown;charset=utf-8' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `${post.title || 'untitled'}.${post.format}`; link.click(); URL.revokeObjectURL(url); setStatus('已导出文件'); });
-    const localPublishButton = app.querySelector('[data-local-publish]');
-    localPublishButton?.addEventListener('click', () => {
+    const cloudPublishButton = app.querySelector('[data-cloud-publish]');
+    cloudPublishButton?.addEventListener('click', async () => {
+      const endpoint = app.getAttribute('data-sync-endpoint') || '';
+      if (!endpoint) { setStatus('尚未配置云端 API'); return; }
       const post = collect();
       if (!post.title.trim() || !post.pubDate) { setStatus('请先填写标题和发布日期'); return; }
-      const markdown = draftToMarkdown(post);
-      const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${post.title || 'untitled'}.${post.format}`;
-      link.click();
-      URL.revokeObjectURL(url);
-      const command = `pnpm publish:article -- "${link.download}"`;
-      navigator.clipboard?.writeText(command).catch(() => {});
-      setStatus(`已下载 ${link.download}，发布命令已复制`);
+      if (!confirm('确认通过云端提交当前文章并触发正式网站部署吗？')) return;
+      cloudPublishButton.disabled = true;
+      setStatus('正在发布…');
+      try {
+        const me = await fetch(`${endpoint.replace(/\/$/, '')}/auth/me`, { credentials: 'include' });
+        if (!me.ok) { window.location.href = `${endpoint.replace(/\/$/, '')}/auth/github?returnTo=${encodeURIComponent(location.href)}`; return; }
+        const response = await fetch(`${endpoint.replace(/\/$/, '')}/api/sync`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ post }) });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result?.message || `HTTP ${response.status}`);
+        setStatus(result.commitUrl ? `发布成功：${result.commitUrl}` : '发布成功，等待 Actions 部署');
+      } catch (error) { setStatus(`发布失败：${error instanceof Error ? error.message : '云端请求失败'}`); }
+      finally { cloudPublishButton.disabled = false; }
     });
 
     const unlocked = sessionStorage.getItem(ADMIN_UNLOCK_STORAGE_KEY) === 'true';
