@@ -359,9 +359,10 @@ import { withBase } from '../../lib/urls';
     const titleLink = document.querySelector('#site-title-link');
     const form = document.querySelector('#admin-password-form');
     const cancel = document.querySelector('#admin-password-cancel');
-    if (!titleLink || titleLink.dataset.adminBound === 'true') return;
-    titleLink.dataset.adminBound = 'true';
-    titleLink.addEventListener('click', (event) => {
+    const openButtons = document.querySelectorAll('[data-admin-open]');
+    if (titleLink && titleLink.dataset.adminBound !== 'true') {
+      titleLink.dataset.adminBound = 'true';
+      titleLink.addEventListener('click', (event) => {
       event.preventDefault();
       const now = Date.now();
       if (!adminClickTimer || now - (Number(titleLink.dataset.lastAdminClick) || 0) > ADMIN_CLICK_WINDOW) adminClickCount = 0;
@@ -378,6 +379,15 @@ import { withBase } from '../../lib/urls';
       adminNavigateTimer = setTimeout(() => {
         window.location.assign(titleLink.href);
       }, 2500);
+      });
+    }
+    openButtons.forEach((button) => {
+      if (button.dataset.adminBound === 'true') return;
+      button.dataset.adminBound = 'true';
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        openAdminDialog();
+      });
     });
     form?.addEventListener('submit', (event) => { void handleAdminSubmit(event); });
     cancel?.addEventListener('click', closeAdminDialog);
