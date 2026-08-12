@@ -51,7 +51,7 @@ tags: ['标签']
 
 ## 源码来源与授权
 
-本项目基于 [user1-cloud/user1-cloud.github.io](https://github.com/user1-cloud/user1-cloud.github.io) 的源码进行迁移和修改，感谢原作者提供源码并授权公开使用、修改和发布。
+本项目基于众网友个人博客的优点借鉴与参考进行迁移和修改，感谢热心作者提供源码并授权使用、修改和发布。
 
 ## 管理台原型
 
