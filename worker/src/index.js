@@ -64,10 +64,15 @@ async function syncPost(request, env) {
   const parts = [post.dir1, post.dir2].filter(Boolean).map(safeSegment);
   const name = safeSegment(post.id?.split('/').pop()?.replace(/\.(md|mdx)$/i, '') || post.title);
   const filePath = `src/content/blog/${[...parts, `${name}.${ext}`].join('/')}`;
+  const previousPath = post.publishedPath ? safePublishedPath(post.publishedPath) : null;
   const content = draftMarkdown(post);
   const existing = await githubFetch(`/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/contents/${encodeURIComponent(filePath).replaceAll('%2F', '/')}`, session.token, { branch: env.GITHUB_BRANCH });
   const body = { message: `更新文章：${post.title}`, content: toBase64(content), branch: env.GITHUB_BRANCH, ...(existing?.sha ? { sha: existing.sha } : {}) };
   const result = await githubFetch(`/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/contents/${encodeURIComponent(filePath).replaceAll('%2F', '/')}`, session.token, { method: 'PUT', body });
+  if (previousPath && previousPath !== filePath) {
+    const previous = await githubFetch(`/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/contents/${encodeURIComponent(previousPath).replaceAll('%2F', '/')}`, session.token, { branch: env.GITHUB_BRANCH });
+    if (previous?.sha) await githubFetch(`/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/contents/${encodeURIComponent(previousPath).replaceAll('%2F', '/')}`, session.token, { method: 'DELETE', body: { message: `移除文章旧路径：${post.title}`, sha: previous.sha, branch: env.GITHUB_BRANCH } });
+  }
   return cors(json({ ok: true, commitSha: result.commit?.sha, commitUrl: result.commit?.html_url, path: filePath }), env);
 }
 
@@ -76,6 +81,7 @@ async function githubFetch(path, token, options = {}) { const response = await f
 function validatePost(post) { if (!post || typeof post !== 'object') throw new Error('文章数据无效'); for (const key of ['title', 'description', 'pubDate', 'body']) if (typeof post[key] !== 'string' || post[key].length > 200000) throw new Error(`字段无效：${key}`); if (!['md', 'mdx'].includes(post.format)) throw new Error('文章格式无效'); return { ...post, tags: Array.isArray(post.tags) ? post.tags.filter((x) => typeof x === 'string').slice(0, 50) : [] }; }
 function draftMarkdown(post) { return `---\ntitle: ${JSON.stringify(post.title)}\ndescription: ${JSON.stringify(post.description)}\npubDate: ${post.pubDate}\n${post.updatedDate ? `updatedDate: ${post.updatedDate}\n` : ''}${post.dir1 ? `dir1: ${JSON.stringify(post.dir1)}\n` : ''}${post.dir2 ? `dir2: ${JSON.stringify(post.dir2)}\n` : ''}tags: [${post.tags.map((x) => JSON.stringify(x)).join(', ')}]\n---\n\n${post.body.trim()}\n`; }
 function safeSegment(value) { const result = String(value || '').trim().replace(/[^\p{L}\p{N}._-]/gu, '-'); if (!result || result === '.' || result === '..') throw new Error('路径无效'); return result; }
+function safePublishedPath(value) { const normalized = String(value || '').replaceAll('\\', '/'); if (!/^src\/content\/blog\/(?:[^/]+\/)*[^/]+\.(?:md|mdx)$/.test(normalized)) throw new Error('旧文章路径无效'); return normalized; }
 function requireEnv(env, keys) { for (const key of keys) if (!env[key] || env[key].includes('YOUR_')) throw new Error(`服务端缺少配置：${key}`); }
 function getCookie(headers, name) { const raw = headers?.get('Cookie') || ''; return raw.split(';').map((x) => x.trim()).find((x) => x.startsWith(`${name}=`))?.slice(name.length + 1) || ''; }
 function cookie(name, value, maxAge, httpOnly = false) { return `${name}=${value}; Max-Age=${maxAge}; Path=/; SameSite=None; Secure${httpOnly ? '; HttpOnly' : ''}`; }
