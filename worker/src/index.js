@@ -45,7 +45,9 @@ async function githubCallback(request, url, env) {
   await env.SESSIONS.put(`session:${sessionId}`, JSON.stringify({ token, login: user.login }), { expirationTtl: SESSION_TTL });
   const packed = stateCookie.split('.')[1];
   const returnTo = packed ? atob(packed.replace(/-/g, '+').replace(/_/g, '/')) : env.ALLOWED_ORIGIN + '/blog_test1/admin/';
-  return new Response(null, { status: 302, headers: { Location: returnTo, 'Set-Cookie': cookie('blog_session', sessionId, SESSION_TTL, true) } });
+  const destination = new URL(returnTo);
+  destination.searchParams.set('admin_token', sessionId);
+  return new Response(null, { status: 302, headers: { Location: destination.toString(), 'Set-Cookie': cookie('blog_session', sessionId, SESSION_TTL, true) } });
 }
 
 async function authMe(request, env) {
@@ -69,7 +71,7 @@ async function syncPost(request, env) {
   return cors(json({ ok: true, commitSha: result.commit?.sha, commitUrl: result.commit?.html_url, path: filePath }), env);
 }
 
-async function readSession(request, env) { const id = getCookie(request.headers, 'blog_session'); if (!id) return null; const raw = await env.SESSIONS.get(`session:${id}`); return raw ? JSON.parse(raw) : null; }
+async function readSession(request, env) { const bearer = request.headers.get('Authorization') || ''; const id = bearer.startsWith('Bearer ') ? bearer.slice(7).trim() : getCookie(request.headers, 'blog_session'); if (!id) return null; const raw = await env.SESSIONS.get(`session:${id}`); return raw ? JSON.parse(raw) : null; }
 async function githubFetch(path, token, options = {}) { const response = await fetch(API + path, { ...options, headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${token}`, 'User-Agent': 'blog-test1-admin-api', ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...(options.headers || {}) }, body: options.body ? JSON.stringify(options.body) : undefined }); if (response.status === 404) return null; if (!response.ok) throw new Error(`GitHub API failed (${response.status})`); return response.json(); }
 function validatePost(post) { if (!post || typeof post !== 'object') throw new Error('文章数据无效'); for (const key of ['title', 'description', 'pubDate', 'body']) if (typeof post[key] !== 'string' || post[key].length > 200000) throw new Error(`字段无效：${key}`); if (!['md', 'mdx'].includes(post.format)) throw new Error('文章格式无效'); return { ...post, tags: Array.isArray(post.tags) ? post.tags.filter((x) => typeof x === 'string').slice(0, 50) : [] }; }
 function draftMarkdown(post) { return `---\ntitle: ${JSON.stringify(post.title)}\ndescription: ${JSON.stringify(post.description)}\npubDate: ${post.pubDate}\n${post.updatedDate ? `updatedDate: ${post.updatedDate}\n` : ''}${post.dir1 ? `dir1: ${JSON.stringify(post.dir1)}\n` : ''}${post.dir2 ? `dir2: ${JSON.stringify(post.dir2)}\n` : ''}tags: [${post.tags.map((x) => JSON.stringify(x)).join(', ')}]\n---\n\n${post.body.trim()}\n`; }
