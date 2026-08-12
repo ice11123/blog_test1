@@ -7,7 +7,7 @@ compatibility_date = "2026-08-12"
 
 [[kv_namespaces]]
 binding = "SESSIONS"
-id = "YOUR_KV_NAMESPACE_ID_HERE"
+id = "ee8558b9d22f4ad59759a3c4917befb6"
 
 [vars]
 ALLOWED_ORIGIN = "https://ice11123.github.io"
