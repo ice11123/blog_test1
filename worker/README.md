@@ -4,7 +4,7 @@
 
 ## 部署前准备
 
-1. 在 GitHub Developer Settings 创建 OAuth App。
+1. 在 GitHub Developer Settings → OAuth Apps 创建 OAuth App。
 2. Homepage URL 填写 `https://ice11123.github.io/blog_test1/`。
 3. Authorization callback URL 填写 `https://YOUR_WORKER_DOMAIN/auth/callback`。
 4. 在 Cloudflare 创建 KV Namespace，并将 ID 填入 `wrangler.toml`。
@@ -24,6 +24,16 @@ npx wrangler deploy
 
 `SESSION_SECRET` 应使用随机长字符串。不要把 OAuth Secret、Session Secret 或 GitHub Token 写入仓库。
 
+## 部署后的 GitHub Pages 配置
+
+在 `ice11123/blog_test1` → Settings → Secrets and variables → Actions → Variables 中新增：
+
+```text
+PUBLIC_ADMIN_SYNC_API_URL=https://YOUR_WORKER_DOMAIN
+```
+
+新增变量后重新运行一次 `Deploy Astro to GitHub Pages` 工作流，前端“发布到正式网站”按钮才会启用。
+
 ## 连接 Astro 前端
 
 将 Worker 部署地址设置为 GitHub Pages 构建变量：
@@ -36,4 +46,4 @@ PUBLIC_ADMIN_SYNC_API_URL=https://YOUR_WORKER_DOMAIN
 
 ## 权限说明
 
-Worker 只接受 GitHub 用户名 `ice11123`，只写入 `ice11123/blog_test1` 的 `main` 分支。GitHub OAuth 的 `repo` scope 仍属于较大权限；正式使用时建议改为 GitHub App，只给目标仓库 Contents 写权限。
+Worker 只接受 GitHub 用户名 `ice11123`，只写入 `ice11123/blog_test1` 的 `main` 分支。当前 OAuth 使用 `public_repo`，仅适用于公开仓库；正式使用时仍建议改为 GitHub App，只给目标仓库 Contents 写权限。

@@ -24,7 +24,7 @@ function githubLogin(url, env) {
   const auth = new URL('https://github.com/login/oauth/authorize');
   auth.searchParams.set('client_id', env.GITHUB_OAUTH_CLIENT_ID);
   auth.searchParams.set('redirect_uri', new URL('/auth/callback', url).toString());
-  auth.searchParams.set('scope', 'repo');
+  auth.searchParams.set('scope', 'public_repo');
   auth.searchParams.set('state', state);
   return new Response(null, { status: 302, headers: { Location: auth.toString(), 'Set-Cookie': cookie('oauth_state', `${state}.${b64url(redirect)}`, 600) } });
 }
