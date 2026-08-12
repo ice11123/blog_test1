@@ -53,6 +53,18 @@ tags: ['标签']
 
 本项目基于 [user1-cloud/user1-cloud.github.io](https://github.com/user1-cloud/user1-cloud.github.io) 的源码进行迁移和修改，感谢原作者提供源码并授权公开使用、修改和发布。
 
+## 管理台原型
+
+站名支持连续点击 5 次打开 `/admin/` 管理台原型。当前版本只把文章草稿保存到浏览器 `localStorage`，不写入 GitHub，也不具备真正的身份认证；页面会明确显示此安全边界。
+
+如需启用前端原型密码门槛，请先在本地生成 SHA-256 哈希：
+
+```powershell
+node -e "const c=require('crypto'); process.stdout.write(c.createHash('sha256').update(process.argv[1]).digest('hex'))" "替换为你自己的密码"
+```
+
+将输出的哈希填入 `src/consts.ts` 的 `ADMIN_PASSWORD_HASH`。不要提交明文密码。前端哈希只能防止普通访客误入，不能替代服务端登录和 GitHub 仓库权限控制。
+
 原项目的文章、个人资料、联系方式、社交账号、友情链接、图片资源及 Git 历史均未迁移。
 
 本仓库暂未提供面向第三方的开源许可证。除上述原作者授权外，未经许可请勿复制、修改或再发布本仓库代码。

@@ -1,0 +1,212 @@
+---
+import { getCollection } from 'astro:content';
+import Header from '../../components/layout/Header.astro';
+import Footer from '../../components/layout/Footer.astro';
+import HtmlHead from '../../components/layout/HtmlHead.astro';
+import { ADMIN_UNLOCK_STORAGE_KEY, SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
+import type { AdminPostDraft } from '../../lib/adminDrafts';
+import { resolveDirs } from '../../lib/utils';
+
+const posts = await getCollection('blog');
+const initialDrafts: AdminPostDraft[] = posts.map((post) => {
+  const dirs = resolveDirs(post);
+  return {
+    id: post.id,
+    title: post.data.title,
+    description: post.data.description,
+    pubDate: post.data.pubDate.toISOString().slice(0, 10),
+    updatedDate: post.data.updatedDate?.toISOString().slice(0, 10),
+    dir1: dirs.dir1,
+    dir2: dirs.dir2,
+    tags: post.data.tags ?? [],
+    body: post.body ?? '',
+    format: post.id.endsWith('.md') ? 'md' : 'mdx',
+  };
+});
+---
+
+<html lang="zh-cn">
+  <head>
+    <HtmlHead title={`管理台 - ${SITE_TITLE}`} description={SITE_DESCRIPTION} />
+    <meta name="robots" content="noindex,nofollow" />
+  </head>
+  <body class="admin-page">
+    <Header />
+    <main class="admin-shell">
+      <section class="admin-hero">
+        <p class="admin-kicker">ADMIN PROTOTYPE</p>
+        <h1>博客管理台</h1>
+        <p>这里可以编辑文章、标签和目录，并在当前浏览器保存本地草稿。</p>
+        <div class="admin-warning" role="note">
+          前端原型提示：当前没有真正的登录、服务端鉴权或 GitHub 写入权限。草稿只保存在此浏览器，任何访问者都可以绕过前端门槛。
+        </div>
+      </section>
+
+      <section id="admin-app" data-initial-drafts={JSON.stringify(initialDrafts)}>
+        <div class="admin-locked" data-locked>
+          <h2>管理台已锁定</h2>
+          <p>请从顶部站名连续点击 5 次，再输入管理密码。</p>
+        </div>
+        <div class="admin-editor" data-editor hidden>
+          <div class="admin-toolbar">
+            <div>
+              <strong data-status>未保存</strong>
+              <span class="admin-muted" data-count></span>
+            </div>
+            <div class="admin-actions">
+              <button type="button" data-new>新建文章</button>
+              <button type="button" data-reset>恢复仓库初始内容</button>
+              <button type="button" data-export>导出当前文件</button>
+            </div>
+          </div>
+
+          <div class="admin-layout">
+            <aside class="admin-list" aria-label="文章列表">
+              <label class="admin-search-label" for="admin-search">筛选文章</label>
+              <input id="admin-search" type="search" placeholder="标题、标签或分类" data-search />
+              <div data-post-list></div>
+            </aside>
+
+            <form class="admin-form" data-form>
+              <div class="form-grid">
+                <label>标题<input name="title" required /></label>
+                <label>发布日期<input name="pubDate" type="date" required /></label>
+                <label class="wide">描述<textarea name="description" rows="2" required></textarea></label>
+                <label>一级目录<input name="dir1" placeholder="例如：开始" /></label>
+                <label>二级目录<input name="dir2" placeholder="可选" /></label>
+                <label class="wide">标签<input name="tags" placeholder="用逗号分隔，例如：Astro, 演示" /></label>
+                <label>文件格式<select name="format"><option value="mdx">MDX</option><option value="md">Markdown</option></select></label>
+                <label>草稿 ID<input name="id" readonly /></label>
+              </div>
+              <label class="body-label">正文（Markdown / MDX）<textarea name="body" rows="22" required></textarea></label>
+              <div class="form-actions">
+                <button type="submit" class="primary">保存本地草稿</button>
+                <button type="button" data-delete>删除当前草稿</button>
+              </div>
+            </form>
+
+            <article class="admin-preview" aria-live="polite">
+              <div class="preview-heading"><span>实时预览</span><span class="admin-muted">基础 Markdown 预览</span></div>
+              <div class="preview-body" data-preview></div>
+            </article>
+          </div>
+        </div>
+      </section>
+    </main>
+    <Footer />
+  </body>
+</html>
+
+<style>
+  .admin-shell { width: min(1400px, calc(100% - 2rem)); margin: 0 auto 3rem; }
+  .admin-hero { max-width: 850px; margin: 1rem auto 1.5rem; }
+  .admin-kicker { margin: 0; color: var(--accent); font-size: 0.72rem; letter-spacing: 0.16em; }
+  .admin-hero h1 { margin: 0.2rem 0 0.5rem; }
+  .admin-hero > p:not(.admin-kicker) { margin: 0 0 1rem; }
+  .admin-warning { padding: 0.8rem 1rem; border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0; background: color-mix(in srgb, var(--accent) 10%, transparent); font-size: 0.86rem; line-height: 1.55; }
+  .admin-locked { max-width: 520px; margin: 3rem auto; padding: 2rem; text-align: center; border: 1px solid var(--border-light); border-radius: 16px; background: var(--background-dark); }
+  .admin-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; padding: 0.8rem 1rem; border: 1px solid var(--border-light); border-radius: 12px; }
+  .admin-actions, .form-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .admin-actions button, .form-actions button, .admin-toolbar button { padding: 0.5rem 0.75rem; border: 1px solid var(--border-light); border-radius: 8px; color: var(--foreground); background: transparent; cursor: pointer; }
+  .admin-actions button:hover, .form-actions button:hover { border-color: var(--accent); color: var(--accent); }
+  .admin-actions .primary, .form-actions .primary { color: var(--background); background: var(--accent); border-color: var(--accent); }
+  .admin-layout { display: grid; grid-template-columns: 220px minmax(340px, 1fr) minmax(300px, 0.9fr); gap: 1rem; align-items: start; }
+  .admin-list, .admin-form, .admin-preview { min-width: 0; padding: 1rem; border: 1px solid var(--border-light); border-radius: 12px; background: color-mix(in srgb, var(--background-dark) 65%, transparent); }
+  .admin-list { position: sticky; top: 1rem; }
+  .admin-search-label, .body-label, .admin-form label { display: grid; gap: 0.35rem; font-size: 0.82rem; }
+  .admin-search-label { margin-bottom: 0.35rem; }
+  .admin-list input, .admin-form input, .admin-form textarea, .admin-form select { width: 100%; box-sizing: border-box; padding: 0.55rem 0.65rem; color: var(--foreground); background: var(--background); border: 1px solid var(--border-light); border-radius: 7px; font: inherit; font-size: 0.9rem; }
+  .admin-form textarea { resize: vertical; line-height: 1.5; }
+  .admin-form input[readonly] { opacity: 0.65; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .form-grid .wide { grid-column: 1 / -1; }
+  .body-label { margin-top: 0.85rem; }
+  .form-actions { margin-top: 0.85rem; }
+  .admin-post-item { display: grid; gap: 0.1rem; width: 100%; margin-top: 0.5rem; padding: 0.6rem; text-align: left; color: var(--foreground); background: transparent; border: 1px solid transparent; border-radius: 8px; cursor: pointer; }
+  .admin-post-item:hover, .admin-post-item.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, transparent); }
+  .admin-post-item small { opacity: 0.65; font-size: 0.72rem; }
+  .preview-heading { display: flex; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.75rem; font-size: 0.85rem; }
+  .preview-body { min-height: 360px; line-height: 1.7; overflow-wrap: anywhere; }
+  .preview-body h1, .preview-body h2, .preview-body h3 { margin: 1rem 0 0.5rem; }
+  .preview-body p { margin: 0.7rem 0; }
+  .preview-body pre { overflow-x: auto; padding: 0.75rem; background: var(--background-dark); border-radius: 8px; }
+  .preview-body code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+  .admin-muted { opacity: 0.65; font-size: 0.78rem; }
+  @media (max-width: 1050px) { .admin-layout { grid-template-columns: 190px minmax(320px, 1fr); } .admin-preview { grid-column: 1 / -1; } }
+  @media (max-width: 720px) { .admin-shell { width: min(100% - 1rem, 680px); } .admin-toolbar { align-items: flex-start; flex-direction: column; } .admin-layout { display: block; } .admin-list, .admin-form, .admin-preview { position: static; margin-bottom: 1rem; } .form-grid { grid-template-columns: 1fr; } .form-grid .wide { grid-column: auto; } }
+</style>
+
+<script is:inline define:vars={{ initialDrafts, ADMIN_UNLOCK_STORAGE_KEY }}>
+  const STORAGE_KEY = 'blog-test1-admin-drafts-v1';
+  const clonePost = (post) => ({ ...post, tags: [...post.tags] });
+  const readDrafts = () => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      return Array.isArray(parsed) ? parsed.map(clonePost) : initialDrafts.map(clonePost);
+    } catch { return initialDrafts.map(clonePost); }
+  };
+  const writeDrafts = (posts) => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(posts)); } catch {} };
+  const saveDraft = (post) => writeDrafts([...readDrafts().filter(item => item.id !== post.id), clonePost(post)]);
+  const removeDraft = (id) => writeDrafts(readDrafts().filter(post => post.id !== id));
+  const resetDrafts = () => { try { localStorage.removeItem(STORAGE_KEY); } catch {} };
+  const slugifyAdminId = (title) => `draft/${title.trim().toLowerCase().replace(/[^\\p{L}\\p{N}]+/gu, '-').replace(/^-+|-+$/g, '') || 'untitled'}-${Date.now()}`;
+  const draftToMarkdown = (post) => ['---', `title: ${JSON.stringify(post.title)}`, `description: ${JSON.stringify(post.description)}`, `pubDate: ${post.pubDate}`, ...(post.dir1 ? [`dir1: ${JSON.stringify(post.dir1)}`] : []), ...(post.dir2 ? [`dir2: ${JSON.stringify(post.dir2)}`] : []), `tags: [${post.tags.map(tag => JSON.stringify(tag)).join(', ')}]`, '---', '', post.body.trim(), ''].join('\\n');
+
+  const app = document.querySelector('#admin-app');
+  if (app) {
+    let drafts = readDrafts();
+    let selectedId = drafts[0]?.id || '';
+    const editor = app.querySelector('[data-editor]');
+    const locked = app.querySelector('[data-locked]');
+    const form = app.querySelector('[data-form]');
+    const list = app.querySelector('[data-post-list]');
+    const preview = app.querySelector('[data-preview]');
+    const status = app.querySelector('[data-status]');
+    const count = app.querySelector('[data-count]');
+    const field = (name) => form?.querySelector(`[name="${name}"]`);
+    const escapeHtml = (value) => value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+    const renderMarkdown = (value) => {
+      let html = escapeHtml(value);
+      html = html.replace(/```([\w-]*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+      html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>').replace(/^## (.+)$/gm, '<h2>$1</h2>').replace(/^# (.+)$/gm, '<h1>$1</h1>');
+      html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
+      html = html.replace(/^[-*] (.+)$/gm, '<li>$1</li>');
+      html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>');
+      return html.split(/\n{2,}/).map(block => block.trim().startsWith('<') ? block : `<p>${block.replace(/\n/g, '<br />')}</p>`).join('');
+    };
+    const setStatus = (text) => { if (status) status.textContent = text; };
+    const current = () => drafts.find(post => post.id === selectedId);
+    const loadForm = () => {
+      const post = current();
+      if (!post || !form) return;
+      ['id', 'title', 'description', 'pubDate', 'dir1', 'dir2', 'body', 'format'].forEach(name => { const input = field(name); if (input) input.value = post[name] || ''; });
+      const tags = field('tags'); if (tags) tags.value = post.tags.join(', ');
+      updatePreview();
+    };
+    const updatePreview = () => { const body = field('body'); if (preview && body) preview.innerHTML = renderMarkdown(body.value); };
+    const renderList = () => {
+      if (!list) return;
+      const query = (field('search')?.value || app.querySelector('[data-search]')?.value || '').toLowerCase();
+      list.innerHTML = drafts.filter(post => !post.deleted && `${post.title} ${post.tags.join(' ')} ${post.dir1} ${post.dir2}`.toLowerCase().includes(query)).map(post => `<button type="button" class="admin-post-item ${post.id === selectedId ? 'active' : ''}" data-id="${escapeHtml(post.id)}"><span>${escapeHtml(post.title || '未命名文章')}</span><small>${escapeHtml(post.dir1 || '未分类')} · ${escapeHtml(post.tags.join(', ') || '无标签')}</small></button>`).join('') || '<p class="admin-muted">暂无文章</p>';
+      list.querySelectorAll('[data-id]').forEach(button => button.addEventListener('click', () => { selectedId = button.getAttribute('data-id') || ''; loadForm(); renderList(); }));
+      if (count) count.textContent = `共 ${drafts.filter(post => !post.deleted).length} 篇`;
+    };
+    const collect = () => ({ ...current(), id: field('id')?.value || selectedId, title: field('title')?.value || '', description: field('description')?.value || '', pubDate: field('pubDate')?.value || '', dir1: field('dir1')?.value || '', dir2: field('dir2')?.value || '', tags: (field('tags')?.value || '').split(',').map(tag => tag.trim()).filter(Boolean), body: field('body')?.value || '', format: field('format')?.value || 'mdx' });
+    const save = () => { const post = collect(); saveDraft(post); drafts = readDrafts(); selectedId = post.id; renderList(); loadForm(); setStatus('已保存到本浏览器'); };
+    form?.addEventListener('submit', event => { event.preventDefault(); save(); });
+    form?.addEventListener('input', updatePreview);
+    app.querySelector('[data-search]')?.addEventListener('input', renderList);
+    app.querySelector('[data-new]')?.addEventListener('click', () => { const post = { id: slugifyAdminId('未命名文章'), title: '未命名文章', description: '', pubDate: new Date().toISOString().slice(0, 10), dir1: '', dir2: '', tags: [], body: '# 新文章\n\n在这里开始写作。', format: 'mdx' }; saveDraft(post); drafts = readDrafts(); selectedId = post.id; renderList(); loadForm(); });
+    app.querySelector('[data-delete]')?.addEventListener('click', () => { if (!selectedId || !confirm('确定删除当前本地草稿吗？')) return; removeDraft(selectedId); drafts = readDrafts(); selectedId = drafts[0]?.id || ''; renderList(); loadForm(); setStatus('已删除本地草稿'); });
+    app.querySelector('[data-reset]')?.addEventListener('click', () => { if (!confirm('将清除本浏览器中的全部草稿并恢复仓库初始内容，继续吗？')) return; resetDrafts(); drafts = readDrafts(); selectedId = drafts[0]?.id || ''; renderList(); loadForm(); setStatus('已恢复初始内容'); });
+    app.querySelector('[data-export]')?.addEventListener('click', () => { const post = current(); if (!post) return; const blob = new Blob([draftToMarkdown(collect())], { type: 'text/markdown;charset=utf-8' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `${post.title || 'untitled'}.${post.format}`; link.click(); URL.revokeObjectURL(url); setStatus('已导出文件'); });
+    const unlocked = sessionStorage.getItem(ADMIN_UNLOCK_STORAGE_KEY) === 'true';
+    if (unlocked) {
+      locked?.setAttribute('hidden', '');
+      editor?.removeAttribute('hidden');
+    }
+    renderList();
+    loadForm();
+  }
+</script>

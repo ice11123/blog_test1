@@ -8,6 +8,11 @@ export const GITHUB_URL = 'https://github.com/ice11123';
 export const BILIBILI_URL = 'https://www.bilibili.com/video/BV1GJ411x7h7/?spm_id_from=333.337.search-card.all.click';
 export const SITE_URL = 'https://ice11123.github.io/blog_test1/';
 
+// 前端原型密码门槛：这里只保存 SHA-256 哈希，不要提交真实密码。
+// 请在本地生成哈希后替换此占位符；该机制不能替代服务端认证。
+export const ADMIN_PASSWORD_HASH = 'YOUR_ADMIN_PASSWORD_HASH_HERE';
+export const ADMIN_UNLOCK_STORAGE_KEY = 'blog-test1-admin-unlocked';
+
 // 留空时按文章目录名称自动排序；需要固定顺序时可在这里追加名称。
 export const DIR1_ORDER: string[] = [];
 export const DIR2_ORDER: Record<string, string[]> = {};

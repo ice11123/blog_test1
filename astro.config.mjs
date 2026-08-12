@@ -27,7 +27,9 @@ export default defineConfig({
   integrations: [
     expressiveCode(),
     mdx(),
-    sitemap(),
+    sitemap({
+      filter: (page) => !page.endsWith('/admin/'),
+    }),
     compress({
       HTML: {
         'html-minifier-terser': {

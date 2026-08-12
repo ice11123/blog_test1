@@ -1,5 +1,5 @@
 ---
-import { SITE_TITLE } from '../../consts';
+import { ADMIN_PASSWORD_HASH, ADMIN_UNLOCK_STORAGE_KEY, SITE_TITLE } from '../../consts';
 import HeaderLink from '../ui/HeaderLink.astro';
 import SocialLinks from '../ui/SocialLinks.astro';
 import { withBase } from '../../lib/urls';
@@ -8,7 +8,7 @@ import { withBase } from '../../lib/urls';
 <header id="site-header">
   <nav>
     <div class="nav-left">
-      <h2><HeaderLink href={withBase('/')}>{SITE_TITLE}</HeaderLink></h2>
+      <h2><HeaderLink id="site-title-link" href={withBase('/')} data-admin-url={withBase('/admin/')} aria-label={`${SITE_TITLE}，连续点击 5 次打开管理入口`} title="连续点击 5 次打开管理入口">{SITE_TITLE}</HeaderLink></h2>
     </div>
     <div class="nav-center">
       <HeaderLink href={withBase('/')}>主页</HeaderLink>
@@ -30,6 +30,20 @@ import { withBase } from '../../lib/urls';
     <path d="M2 5 L6 8 L10 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>
 </button>
+
+<dialog id="admin-password-dialog" aria-labelledby="admin-password-title">
+  <form method="dialog" id="admin-password-form">
+    <h2 id="admin-password-title">管理入口</h2>
+    <p>请输入管理密码。此密码门槛仅用于前端原型，不提供真正的仓库权限保护。</p>
+    <label for="admin-password-input">密码</label>
+    <input id="admin-password-input" name="password" type="password" autocomplete="current-password" required />
+    <p id="admin-password-error" class="admin-password-error" role="alert" hidden>密码不正确，或尚未配置密码哈希。</p>
+    <div class="admin-password-actions">
+      <button value="cancel" type="button" id="admin-password-cancel">取消</button>
+      <button value="default" type="submit">进入管理</button>
+    </div>
+  </form>
+</dialog>
 
 <style>
   header {
@@ -134,6 +148,37 @@ import { withBase } from '../../lib/urls';
     transition: transform 0.25s ease;
     transform: rotate(180deg);
   }
+
+  #admin-password-dialog {
+    width: min(360px, calc(100vw - 2rem));
+    padding: 0;
+    color: var(--foreground);
+    background: var(--background);
+    border: 1px solid var(--border-light);
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  }
+
+  #admin-password-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(2px);
+  }
+
+  #admin-password-form {
+    display: grid;
+    gap: 0.7rem;
+    padding: 1.25rem;
+  }
+
+  #admin-password-form h2,
+  #admin-password-form p { margin: 0; }
+  #admin-password-form p { font-size: 0.86rem; line-height: 1.5; opacity: 0.78; }
+  #admin-password-form label { font-size: 0.9rem; }
+  #admin-password-input { width: 100%; box-sizing: border-box; padding: 0.65rem 0.75rem; border: 1px solid var(--border-light); border-radius: 8px; color: var(--foreground); background: var(--background); }
+  .admin-password-error { color: var(--accent); }
+  .admin-password-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.25rem; }
+  .admin-password-actions button { padding: 0.5rem 0.85rem; border: 1px solid var(--border-light); border-radius: 8px; color: var(--foreground); background: transparent; cursor: pointer; }
+  .admin-password-actions button[type="submit"] { color: var(--background); background: var(--accent); border-color: var(--accent); }
 
   /* 折叠：nav 隐藏 */
   html.header-collapsed nav {
@@ -254,6 +299,86 @@ import { withBase } from '../../lib/urls';
   document.addEventListener('DOMContentLoaded', initHeader);
   document.addEventListener('astro:page-load', initHeader);
   document.addEventListener('astro:after-swap', initHeader);
+</script>
+
+<script is:inline define:vars={{ ADMIN_PASSWORD_HASH, ADMIN_UNLOCK_STORAGE_KEY }}>
+  // 前端原型门槛：不要将其视为真实身份认证。
+  const ADMIN_CLICK_LIMIT = 5;
+  const ADMIN_CLICK_WINDOW = 2000;
+  let adminClickCount = 0;
+  let adminClickTimer;
+  let adminAttempts = 0;
+
+  async function sha256(value) {
+    const data = new TextEncoder().encode(value);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+  }
+
+  function openAdminDialog() {
+    const dialog = document.querySelector('#admin-password-dialog');
+    const input = document.querySelector('#admin-password-input');
+    const error = document.querySelector('#admin-password-error');
+    if (!dialog || !input) return;
+    if (error) error.hidden = true;
+    input.value = '';
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+    else dialog.setAttribute('open', '');
+    input.focus();
+  }
+
+  function closeAdminDialog() {
+    const dialog = document.querySelector('#admin-password-dialog');
+    if (!dialog) return;
+    if (typeof dialog.close === 'function') dialog.close();
+    else dialog.removeAttribute('open');
+  }
+
+  async function handleAdminSubmit(event) {
+    event.preventDefault();
+    const input = document.querySelector('#admin-password-input');
+    const error = document.querySelector('#admin-password-error');
+    if (!input || !error) return;
+    const hash = await sha256(input.value);
+    const valid = ADMIN_PASSWORD_HASH !== 'YOUR_ADMIN_PASSWORD_HASH_HERE' && hash === ADMIN_PASSWORD_HASH;
+    if (!valid) {
+      adminAttempts += 1;
+      error.hidden = false;
+      input.select();
+      await new Promise(resolve => setTimeout(resolve, Math.min(adminAttempts * 150, 900)));
+      return;
+    }
+    closeAdminDialog();
+    sessionStorage.setItem(ADMIN_UNLOCK_STORAGE_KEY, 'true');
+    const target = document.querySelector('#site-title-link')?.getAttribute('data-admin-url');
+    if (target) window.location.assign(target);
+  }
+
+  function initAdminEntry() {
+    const titleLink = document.querySelector('#site-title-link');
+    const form = document.querySelector('#admin-password-form');
+    const cancel = document.querySelector('#admin-password-cancel');
+    if (!titleLink || titleLink.dataset.adminBound === 'true') return;
+    titleLink.dataset.adminBound = 'true';
+    titleLink.addEventListener('click', (event) => {
+      const now = Date.now();
+      if (!adminClickTimer || now - (Number(titleLink.dataset.lastAdminClick) || 0) > ADMIN_CLICK_WINDOW) adminClickCount = 0;
+      titleLink.dataset.lastAdminClick = String(now);
+      adminClickCount += 1;
+      if (adminClickTimer) clearTimeout(adminClickTimer);
+      adminClickTimer = setTimeout(() => { adminClickCount = 0; }, ADMIN_CLICK_WINDOW);
+      if (adminClickCount >= ADMIN_CLICK_LIMIT) {
+        event.preventDefault();
+        adminClickCount = 0;
+        openAdminDialog();
+      }
+    });
+    form?.addEventListener('submit', (event) => { void handleAdminSubmit(event); });
+    cancel?.addEventListener('click', closeAdminDialog);
+  }
+
+  document.addEventListener('DOMContentLoaded', initAdminEntry);
+  document.addEventListener('astro:page-load', initAdminEntry);
 </script>
 
 <script>
