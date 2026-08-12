@@ -3,7 +3,7 @@ import { getCollection } from 'astro:content';
 import Header from '../../components/layout/Header.astro';
 import Footer from '../../components/layout/Footer.astro';
 import HtmlHead from '../../components/layout/HtmlHead.astro';
-import { ADMIN_SYNC_API_URL, SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
+import { SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
 import type { AdminPostDraft } from '../../lib/adminDrafts';
 import { resolveDirs } from '../../lib/utils';
 
@@ -43,7 +43,7 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
         </div>
       </section>
 
-      <section id="admin-app" data-initial-drafts={JSON.stringify(initialDrafts)} data-sync-endpoint={ADMIN_SYNC_API_URL}>
+      <section id="admin-app" data-initial-drafts={JSON.stringify(initialDrafts)}>
         <div class="admin-locked" data-locked>
           <h2>管理台已锁定</h2>
           <p>请从顶部站名连续点击 5 次，再输入管理密码。</p>
@@ -59,7 +59,7 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
               <button type="button" data-new>新建文章</button>
               <button type="button" data-reset>恢复仓库初始内容</button>
               <button type="button" data-export>导出当前文件</button>
-              <button type="button" class="sync-button" data-sync disabled={!ADMIN_SYNC_API_URL} title={ADMIN_SYNC_API_URL ? '提交当前草稿到服务端并触发部署' : '尚未配置服务端同步 API'}>同步到正式网站</button>
+              <button type="button" class="sync-button" data-local-publish title="下载文章并复制本地发布命令">本地发布</button>
             </div>
           </div>
 
@@ -87,7 +87,7 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
                 <button type="button" data-delete>删除当前草稿</button>
                 <span class="edited-at" data-edited-at>尚未修改</span>
               </div>
-              <p class="sync-hint" data-sync-hint>{ADMIN_SYNC_API_URL ? '同步会将当前文章草稿提交到服务端，并由服务端触发 GitHub Actions 部署。' : '当前仅保存到本地浏览器。配置服务端同步 API 后，可将草稿提交到 GitHub 仓库并触发部署。'}</p>
+              <p class="sync-hint" data-sync-hint>编辑完成后点击“本地发布”：先下载文章文件，再在仓库目录运行发布命令，检查、提交并推送到正式网站。</p>
             </form>
 
             <article class="admin-preview" aria-live="polite">
@@ -228,30 +228,21 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
     app.querySelector('[data-delete]')?.addEventListener('click', () => { if (!selectedId || !confirm('确定删除当前本地草稿吗？')) return; removeDraft(selectedId); drafts = readDrafts(); selectedId = drafts[0]?.id || ''; renderList(); loadForm(); setStatus('已删除本地草稿'); });
     app.querySelector('[data-reset]')?.addEventListener('click', () => { if (!confirm('将清除本浏览器中的全部草稿并恢复仓库初始内容，继续吗？')) return; resetDrafts(); drafts = readDrafts(); selectedId = drafts[0]?.id || ''; renderList(); loadForm(); setStatus('已恢复初始内容'); });
     app.querySelector('[data-export]')?.addEventListener('click', () => { const post = current(); if (!post) return; const blob = new Blob([draftToMarkdown(collect())], { type: 'text/markdown;charset=utf-8' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `${post.title || 'untitled'}.${post.format}`; link.click(); URL.revokeObjectURL(url); setStatus('已导出文件'); });
-    const syncButton = app.querySelector('[data-sync]');
-    syncButton?.addEventListener('click', async () => {
-      const endpoint = app.getAttribute('data-sync-endpoint') || '';
-      if (!endpoint) return;
+    const localPublishButton = app.querySelector('[data-local-publish]');
+    localPublishButton?.addEventListener('click', () => {
       const post = collect();
       if (!post.title.trim() || !post.pubDate) { setStatus('请先填写标题和发布日期'); return; }
-      if (!confirm('确认将当前文章提交到 GitHub 仓库并触发正式网站部署吗？')) return;
-      syncButton.disabled = true;
-      setStatus('正在同步到正式网站…');
-      try {
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ repository: 'ice11123/blog_test1', branch: 'main', post }),
-        });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(result?.message || `HTTP ${response.status}`);
-        setStatus(result?.commitUrl ? `同步成功：${result.commitUrl}` : '同步成功，等待 GitHub Actions 部署');
-      } catch (error) {
-        setStatus(`同步失败：${error instanceof Error ? error.message : '服务端请求失败'}`);
-      } finally {
-        syncButton.disabled = false;
-      }
+      const markdown = draftToMarkdown(post);
+      const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${post.title || 'untitled'}.${post.format}`;
+      link.click();
+      URL.revokeObjectURL(url);
+      const command = `pnpm publish:article -- "${link.download}"`;
+      navigator.clipboard?.writeText(command).catch(() => {});
+      setStatus(`已下载 ${link.download}，发布命令已复制`);
     });
 
     const unlocked = sessionStorage.getItem(ADMIN_UNLOCK_STORAGE_KEY) === 'true';
