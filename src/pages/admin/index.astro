@@ -3,7 +3,7 @@ import { getCollection } from 'astro:content';
 import Header from '../../components/layout/Header.astro';
 import Footer from '../../components/layout/Footer.astro';
 import HtmlHead from '../../components/layout/HtmlHead.astro';
-import { ADMIN_UNLOCK_STORAGE_KEY, SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
+import { SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
 import type { AdminPostDraft } from '../../lib/adminDrafts';
 import { resolveDirs } from '../../lib/utils';
 
@@ -21,6 +21,7 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
     tags: post.data.tags ?? [],
     body: post.body ?? '',
     format: post.id.endsWith('.md') ? 'md' : 'mdx',
+    localEditedAt: undefined,
   };
 });
 ---
@@ -82,6 +83,7 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
               <div class="form-actions">
                 <button type="submit" class="primary">保存本地草稿</button>
                 <button type="button" data-delete>删除当前草稿</button>
+                <span class="edited-at" data-edited-at>尚未修改</span>
               </div>
             </form>
 
@@ -98,7 +100,7 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
 </html>
 
 <style>
-  .admin-shell { width: min(1400px, calc(100% - 2rem)); margin: 0 auto 3rem; }
+  .admin-shell { width: min(1700px, calc(100% - 1.5rem)); margin: 0 auto 3rem; }
   .admin-hero { max-width: 850px; margin: 1rem auto 1.5rem; }
   .admin-kicker { margin: 0; color: var(--accent); font-size: 0.72rem; letter-spacing: 0.16em; }
   .admin-hero h1 { margin: 0.2rem 0 0.5rem; }
@@ -110,18 +112,20 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
   .admin-actions button, .form-actions button, .admin-toolbar button { padding: 0.5rem 0.75rem; border: 1px solid var(--border-light); border-radius: 8px; color: var(--foreground); background: transparent; cursor: pointer; }
   .admin-actions button:hover, .form-actions button:hover { border-color: var(--accent); color: var(--accent); }
   .admin-actions .primary, .form-actions .primary { color: var(--background); background: var(--accent); border-color: var(--accent); }
-  .admin-layout { display: grid; grid-template-columns: 220px minmax(340px, 1fr) minmax(300px, 0.9fr); gap: 1rem; align-items: start; }
+  .admin-layout { display: grid; grid-template-columns: 250px minmax(480px, 1.15fr) minmax(420px, 1fr); gap: 1rem; align-items: start; }
   .admin-list, .admin-form, .admin-preview { min-width: 0; padding: 1rem; border: 1px solid var(--border-light); border-radius: 12px; background: color-mix(in srgb, var(--background-dark) 65%, transparent); }
   .admin-list { position: sticky; top: 1rem; }
   .admin-search-label, .body-label, .admin-form label { display: grid; gap: 0.35rem; font-size: 0.82rem; }
   .admin-search-label { margin-bottom: 0.35rem; }
   .admin-list input, .admin-form input, .admin-form textarea, .admin-form select { width: 100%; box-sizing: border-box; padding: 0.55rem 0.65rem; color: var(--foreground); background: var(--background); border: 1px solid var(--border-light); border-radius: 7px; font: inherit; font-size: 0.9rem; }
   .admin-form textarea { resize: vertical; line-height: 1.5; }
+  .admin-form textarea[name="body"] { min-height: 540px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.86rem; }
   .admin-form input[readonly] { opacity: 0.65; }
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
   .form-grid .wide { grid-column: 1 / -1; }
   .body-label { margin-top: 0.85rem; }
   .form-actions { margin-top: 0.85rem; }
+  .edited-at { align-self: center; margin-left: auto; color: var(--foreground-dark); font-size: 0.78rem; }
   .admin-post-item { display: grid; gap: 0.1rem; width: 100%; margin-top: 0.5rem; padding: 0.6rem; text-align: left; color: var(--foreground); background: transparent; border: 1px solid transparent; border-radius: 8px; cursor: pointer; }
   .admin-post-item:hover, .admin-post-item.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, transparent); }
   .admin-post-item small { opacity: 0.65; font-size: 0.72rem; }
@@ -133,12 +137,19 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
   .preview-body code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
   .admin-muted { opacity: 0.65; font-size: 0.78rem; }
   @media (max-width: 1050px) { .admin-layout { grid-template-columns: 190px minmax(320px, 1fr); } .admin-preview { grid-column: 1 / -1; } }
-  @media (max-width: 720px) { .admin-shell { width: min(100% - 1rem, 680px); } .admin-toolbar { align-items: flex-start; flex-direction: column; } .admin-layout { display: block; } .admin-list, .admin-form, .admin-preview { position: static; margin-bottom: 1rem; } .form-grid { grid-template-columns: 1fr; } .form-grid .wide { grid-column: auto; } }
+  @media (max-width: 720px) { .admin-shell { width: min(100% - 1rem, 680px); } .admin-toolbar { align-items: flex-start; flex-direction: column; } .admin-layout { display: block; } .admin-list, .admin-form, .admin-preview { position: static; margin-bottom: 1rem; } .form-grid { grid-template-columns: 1fr; } .form-grid .wide { grid-column: auto; } .edited-at { width: 100%; margin-left: 0; } .admin-form textarea[name="body"] { min-height: 420px; } }
 </style>
 
-<script is:inline define:vars={{ initialDrafts, ADMIN_UNLOCK_STORAGE_KEY }}>
+<script>
+  // @ts-nocheck -- 管理台原型脚本运行时由 DOM 约束保护。
+  import { marked } from 'marked';
+
+  const ADMIN_UNLOCK_STORAGE_KEY = 'blog-test1-admin-unlocked';
+
   const STORAGE_KEY = 'blog-test1-admin-drafts-v1';
   const clonePost = (post) => ({ ...post, tags: [...post.tags] });
+  const app = document.querySelector('#admin-app');
+  const initialDrafts = app ? JSON.parse(app.getAttribute('data-initial-drafts') || '[]') : [];
   const readDrafts = () => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -153,7 +164,6 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
   const slugifyAdminId = (title) => `draft/${title.trim().toLowerCase().replace(/[^\\p{L}\\p{N}]+/gu, '-').replace(/^-+|-+$/g, '') || 'untitled'}-${Date.now()}`;
   const draftToMarkdown = (post) => ['---', `title: ${JSON.stringify(post.title)}`, `description: ${JSON.stringify(post.description)}`, `pubDate: ${post.pubDate}`, ...(post.dir1 ? [`dir1: ${JSON.stringify(post.dir1)}`] : []), ...(post.dir2 ? [`dir2: ${JSON.stringify(post.dir2)}`] : []), `tags: [${post.tags.map(tag => JSON.stringify(tag)).join(', ')}]`, '---', '', post.body.trim(), ''].join('\\n');
 
-  const app = document.querySelector('#admin-app');
   if (app) {
     let drafts = readDrafts();
     let selectedId = drafts[0]?.id || '';
@@ -166,14 +176,18 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
     const count = app.querySelector('[data-count]');
     const field = (name) => form?.querySelector(`[name="${name}"]`);
     const escapeHtml = (value) => value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+    let previewTimer;
+    let editedAt = '';
+    const formatEditedAt = (value) => value ? `最新修改于 ${new Date(value).toLocaleString('zh-CN', { hour12: false })}` : '尚未修改';
     const renderMarkdown = (value) => {
-      let html = escapeHtml(value);
-      html = html.replace(/```([\w-]*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
-      html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>').replace(/^## (.+)$/gm, '<h2>$1</h2>').replace(/^# (.+)$/gm, '<h1>$1</h1>');
-      html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
-      html = html.replace(/^[-*] (.+)$/gm, '<li>$1</li>');
-      html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>');
-      return html.split(/\n{2,}/).map(block => block.trim().startsWith('<') ? block : `<p>${block.replace(/\n/g, '<br />')}</p>`).join('');
+      let source = value.replace(/^---[\s\S]*?---\s*/m, '').replace(/^\s*(import|export)\s+.*$/gm, '');
+      source = source.replace(/<([A-Z][\w]*)\b[^>]*\/>/g, (_, name) => `\n[组件预览：${name}]\n`);
+      source = source.replace(/<([A-Z][\w]*)\b[^>]*>[\s\S]*?<\/\1>/g, (_, name) => `\n[组件预览：${name}]\n`);
+      source = source.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => `\n[数学公式] ${math.trim()}\n`);
+      source = source.replace(/(?<!\$)\$([^$\n]+)\$(?!\$)/g, (_, math) => `[行内公式：${math.trim()}]`);
+      const renderer = new marked.Renderer();
+      renderer.html = ({ text }) => escapeHtml(text);
+      return marked.parse(source, { breaks: true, gfm: true, async: false, renderer });
     };
     const setStatus = (text) => { if (status) status.textContent = text; };
     const current = () => drafts.find(post => post.id === selectedId);
@@ -182,9 +196,12 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
       if (!post || !form) return;
       ['id', 'title', 'description', 'pubDate', 'dir1', 'dir2', 'body', 'format'].forEach(name => { const input = field(name); if (input) input.value = post[name] || ''; });
       const tags = field('tags'); if (tags) tags.value = post.tags.join(', ');
+      editedAt = post.localEditedAt || '';
+      const edited = app.querySelector('[data-edited-at]'); if (edited) edited.textContent = formatEditedAt(editedAt);
       updatePreview();
     };
     const updatePreview = () => { const body = field('body'); if (preview && body) preview.innerHTML = renderMarkdown(body.value); };
+    const queuePreviewUpdate = () => { editedAt = new Date().toISOString(); const edited = app.querySelector('[data-edited-at]'); if (edited) edited.textContent = formatEditedAt(editedAt); setStatus('有未保存修改'); clearTimeout(previewTimer); previewTimer = setTimeout(updatePreview, 180); };
     const renderList = () => {
       if (!list) return;
       const query = (field('search')?.value || app.querySelector('[data-search]')?.value || '').toLowerCase();
@@ -192,10 +209,10 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
       list.querySelectorAll('[data-id]').forEach(button => button.addEventListener('click', () => { selectedId = button.getAttribute('data-id') || ''; loadForm(); renderList(); }));
       if (count) count.textContent = `共 ${drafts.filter(post => !post.deleted).length} 篇`;
     };
-    const collect = () => ({ ...current(), id: field('id')?.value || selectedId, title: field('title')?.value || '', description: field('description')?.value || '', pubDate: field('pubDate')?.value || '', dir1: field('dir1')?.value || '', dir2: field('dir2')?.value || '', tags: (field('tags')?.value || '').split(',').map(tag => tag.trim()).filter(Boolean), body: field('body')?.value || '', format: field('format')?.value || 'mdx' });
+    const collect = () => ({ ...current(), id: field('id')?.value || selectedId, title: field('title')?.value || '', description: field('description')?.value || '', pubDate: field('pubDate')?.value || '', dir1: field('dir1')?.value || '', dir2: field('dir2')?.value || '', tags: (field('tags')?.value || '').split(',').map(tag => tag.trim()).filter(Boolean), body: field('body')?.value || '', format: field('format')?.value || 'mdx', localEditedAt: editedAt });
     const save = () => { const post = collect(); saveDraft(post); drafts = readDrafts(); selectedId = post.id; renderList(); loadForm(); setStatus('已保存到本浏览器'); };
     form?.addEventListener('submit', event => { event.preventDefault(); save(); });
-    form?.addEventListener('input', updatePreview);
+    form?.addEventListener('input', queuePreviewUpdate);
     app.querySelector('[data-search]')?.addEventListener('input', renderList);
     app.querySelector('[data-new]')?.addEventListener('click', () => { const post = { id: slugifyAdminId('未命名文章'), title: '未命名文章', description: '', pubDate: new Date().toISOString().slice(0, 10), dir1: '', dir2: '', tags: [], body: '# 新文章\n\n在这里开始写作。', format: 'mdx' }; saveDraft(post); drafts = readDrafts(); selectedId = post.id; renderList(); loadForm(); });
     app.querySelector('[data-delete]')?.addEventListener('click', () => { if (!selectedId || !confirm('确定删除当前本地草稿吗？')) return; removeDraft(selectedId); drafts = readDrafts(); selectedId = drafts[0]?.id || ''; renderList(); loadForm(); setStatus('已删除本地草稿'); });

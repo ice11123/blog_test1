@@ -35,6 +35,9 @@ importers:
       katex:
         specifier: ^0.16.45
         version: 0.16.45
+      marked:
+        specifier: 15.0.0
+        version: 15.0.0
       rehype-autolink-headings:
         specifier: ^7.1.0
         version: 7.1.0
@@ -1735,6 +1738,11 @@ packages:
 
   markdown-table@3.0.4:
     resolution: {integrity: sha512-wiYz4+JrLyb/DqW2hkFJxP7Vd7JuTDm77fvbM8VfEQdmSMqcImWeeRbHwZjBjIFki/VaMK2BhFi7oUUZeM5bqw==}
+
+  marked@15.0.0:
+    resolution: {integrity: sha512-0mouKmBROJv/WSHJBPZZyYofUgawMChnD5je/g+aOBXsHDjb/IsnTQj7mnhQZu+qPJmRQ0ecX3mLGEUm3BgwYA==}
+    engines: {node: '>= 18'}
+    hasBin: true
 
   mdast-util-definition-list@2.0.0:
     resolution: {integrity: sha512-aFWuASQs77BJndNSDcNdvB1HRqWZBptcEjwv67mnPbaAZsfwMHxI8MwoQxAz4I2bHx41hft/HDRC57ZkhpayOQ==}
@@ -4583,6 +4591,8 @@ snapshots:
   markdown-extensions@2.0.0: {}
 
   markdown-table@3.0.4: {}
+
+  marked@15.0.0: {}
 
   mdast-util-definition-list@2.0.0:
     dependencies:

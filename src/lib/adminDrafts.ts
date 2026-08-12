@@ -10,6 +10,7 @@ export interface AdminPostDraft {
   body: string;
   format: 'md' | 'mdx';
   deleted?: boolean;
+  localEditedAt?: string;
 }
 
 export const ADMIN_DRAFTS_STORAGE_KEY = 'blog-test1-admin-drafts-v1';
