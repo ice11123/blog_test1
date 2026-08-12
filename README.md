@@ -59,6 +59,22 @@ tags: ['标签']
 
 管理台已预留“同步到正式网站”按钮。默认按钮为禁用状态；完成独立后端（推荐 Cloudflare Workers + GitHub App）后，在构建环境设置 `PUBLIC_ADMIN_SYNC_API_URL` 即可启用。接口安全边界和请求格式见 [`docs/admin-sync.md`](docs/admin-sync.md)。
 
+## 本地一键发布文章（无需 API）
+
+在 `/admin/` 编辑文章后点击“导出当前文件”，将下载的 `.md` 或 `.mdx` 文件保存到本仓库目录，然后运行：
+
+```powershell
+pnpm publish:article -- "C:\\Users\\你的用户名\\Downloads\\文章标题.mdx"
+```
+
+脚本会按 `dir1` / `dir2` 自动写入 `src/content/blog/`，执行检查和构建，创建提交并推送到 `origin/main`。GitHub Actions 会自动部署正式网站。
+
+仅本地检查、不推送：
+
+```powershell
+pnpm publish:article -- "文章文件.mdx" --no-push
+```
+
 如需启用前端原型密码门槛，请先在本地生成 SHA-256 哈希：
 
 ```powershell
