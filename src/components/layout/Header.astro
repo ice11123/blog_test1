@@ -304,9 +304,10 @@ import { withBase } from '../../lib/urls';
 <script is:inline define:vars={{ ADMIN_PASSWORD_HASH, ADMIN_UNLOCK_STORAGE_KEY }}>
   // 前端原型门槛：不要将其视为真实身份认证。
   const ADMIN_CLICK_LIMIT = 5;
-  const ADMIN_CLICK_WINDOW = 2000;
+  const ADMIN_CLICK_WINDOW = 5000;
   let adminClickCount = 0;
   let adminClickTimer;
+  let adminNavigateTimer;
   let adminAttempts = 0;
 
   async function sha256(value) {
@@ -361,17 +362,22 @@ import { withBase } from '../../lib/urls';
     if (!titleLink || titleLink.dataset.adminBound === 'true') return;
     titleLink.dataset.adminBound = 'true';
     titleLink.addEventListener('click', (event) => {
+      event.preventDefault();
       const now = Date.now();
       if (!adminClickTimer || now - (Number(titleLink.dataset.lastAdminClick) || 0) > ADMIN_CLICK_WINDOW) adminClickCount = 0;
       titleLink.dataset.lastAdminClick = String(now);
       adminClickCount += 1;
       if (adminClickTimer) clearTimeout(adminClickTimer);
       adminClickTimer = setTimeout(() => { adminClickCount = 0; }, ADMIN_CLICK_WINDOW);
+      if (adminNavigateTimer) clearTimeout(adminNavigateTimer);
       if (adminClickCount >= ADMIN_CLICK_LIMIT) {
-        event.preventDefault();
         adminClickCount = 0;
         openAdminDialog();
+        return;
       }
+      adminNavigateTimer = setTimeout(() => {
+        window.location.assign(titleLink.href);
+      }, 2500);
     });
     form?.addEventListener('submit', (event) => { void handleAdminSubmit(event); });
     cancel?.addEventListener('click', closeAdminDialog);
