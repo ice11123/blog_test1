@@ -155,6 +155,7 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
   import { marked } from 'marked';
 
   const ADMIN_UNLOCK_STORAGE_KEY = 'blog-test1-admin-unlocked';
+  const PENDING_CLOUD_PUBLISH_KEY = 'blog-test1-pending-cloud-publish-v1';
 
   const STORAGE_KEY = 'blog-test1-admin-drafts-v1';
   const clonePost = (post) => ({ ...post, tags: [...post.tags] });
@@ -200,6 +201,24 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
       return marked.parse(source, { breaks: true, gfm: true, async: false, renderer });
     };
     const setStatus = (text) => { if (status) status.textContent = text; };
+    const endpoint = () => (app.getAttribute('data-sync-endpoint') || '').replace(/\/$/, '');
+    const publishPost = async (post, button) => {
+      const api = endpoint();
+      if (!api) { setStatus('尚未配置云端 API'); return false; }
+      button && (button.disabled = true);
+      setStatus('正在发布…');
+      try {
+        const response = await fetch(`${api}/api/sync`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ post }) });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result?.message || `HTTP ${response.status}`);
+        localStorage.removeItem(PENDING_CLOUD_PUBLISH_KEY);
+        setStatus(result.commitUrl ? `发布成功：${result.commitUrl}` : '发布成功，等待 Actions 部署');
+        return true;
+      } catch (error) {
+        setStatus(`发布失败：${error instanceof Error ? error.message : '云端请求失败'}`);
+        return false;
+      } finally { button && (button.disabled = false); }
+    };
     const current = () => drafts.find(post => post.id === selectedId);
     const loadForm = () => {
       const post = current();
@@ -230,22 +249,20 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
     app.querySelector('[data-export]')?.addEventListener('click', () => { const post = current(); if (!post) return; const blob = new Blob([draftToMarkdown(collect())], { type: 'text/markdown;charset=utf-8' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `${post.title || 'untitled'}.${post.format}`; link.click(); URL.revokeObjectURL(url); setStatus('已导出文件'); });
     const cloudPublishButton = app.querySelector('[data-cloud-publish]');
     cloudPublishButton?.addEventListener('click', async () => {
-      const endpoint = app.getAttribute('data-sync-endpoint') || '';
-      if (!endpoint) { setStatus('尚未配置云端 API'); return; }
+      const api = endpoint();
+      if (!api) { setStatus('尚未配置云端 API'); return; }
       const post = collect();
       if (!post.title.trim() || !post.pubDate) { setStatus('请先填写标题和发布日期'); return; }
       if (!confirm('确认通过云端提交当前文章并触发正式网站部署吗？')) return;
-      cloudPublishButton.disabled = true;
-      setStatus('正在发布…');
       try {
-        const me = await fetch(`${endpoint.replace(/\/$/, '')}/auth/me`, { credentials: 'include' });
-        if (!me.ok) { window.location.href = `${endpoint.replace(/\/$/, '')}/auth/github?returnTo=${encodeURIComponent(location.href)}`; return; }
-        const response = await fetch(`${endpoint.replace(/\/$/, '')}/api/sync`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ post }) });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(result?.message || `HTTP ${response.status}`);
-        setStatus(result.commitUrl ? `发布成功：${result.commitUrl}` : '发布成功，等待 Actions 部署');
-      } catch (error) { setStatus(`发布失败：${error instanceof Error ? error.message : '云端请求失败'}`); }
-      finally { cloudPublishButton.disabled = false; }
+        const me = await fetch(`${api}/auth/me`, { credentials: 'include' });
+        if (!me.ok) {
+          localStorage.setItem(PENDING_CLOUD_PUBLISH_KEY, JSON.stringify(post));
+          window.location.href = `${api}/auth/github?returnTo=${encodeURIComponent(location.href)}`;
+          return;
+        }
+        await publishPost(post, cloudPublishButton);
+      } catch (error) { setStatus(`登录检查失败：${error instanceof Error ? error.message : '云端请求失败'}`); }
     });
 
     const unlocked = sessionStorage.getItem(ADMIN_UNLOCK_STORAGE_KEY) === 'true';
@@ -255,5 +272,17 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
     }
     renderList();
     loadForm();
+    const pendingRaw = localStorage.getItem(PENDING_CLOUD_PUBLISH_KEY);
+    if (pendingRaw && endpoint() && sessionStorage.getItem(ADMIN_UNLOCK_STORAGE_KEY) === 'true') {
+      try {
+        const pendingPost = JSON.parse(pendingRaw);
+        void fetch(`${endpoint()}/auth/me`, { credentials: 'include' }).then((response) => {
+          if (response.ok) return publishPost(pendingPost, cloudPublishButton);
+          localStorage.removeItem(PENDING_CLOUD_PUBLISH_KEY);
+          setStatus('GitHub 授权未完成，请重新点击发布');
+          return false;
+        });
+      } catch { localStorage.removeItem(PENDING_CLOUD_PUBLISH_KEY); }
+    }
   }
 </script>

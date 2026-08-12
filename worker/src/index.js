@@ -76,7 +76,7 @@ function draftMarkdown(post) { return `---\ntitle: ${JSON.stringify(post.title)}
 function safeSegment(value) { const result = String(value || '').trim().replace(/[^\p{L}\p{N}._-]/gu, '-'); if (!result || result === '.' || result === '..') throw new Error('路径无效'); return result; }
 function requireEnv(env, keys) { for (const key of keys) if (!env[key] || env[key].includes('YOUR_')) throw new Error(`服务端缺少配置：${key}`); }
 function getCookie(headers, name) { const raw = headers?.get('Cookie') || ''; return raw.split(';').map((x) => x.trim()).find((x) => x.startsWith(`${name}=`))?.slice(name.length + 1) || ''; }
-function cookie(name, value, maxAge, httpOnly = false) { return `${name}=${value}; Max-Age=${maxAge}; Path=/; SameSite=Lax${httpOnly ? '; HttpOnly; Secure' : ''}`; }
+function cookie(name, value, maxAge, httpOnly = false) { return `${name}=${value}; Max-Age=${maxAge}; Path=/; SameSite=None; Secure${httpOnly ? '; HttpOnly' : ''}`; }
 function cors(response, env) { const headers = new Headers(response.headers); headers.set('Access-Control-Allow-Origin', env.ALLOWED_ORIGIN || '*'); headers.set('Access-Control-Allow-Credentials', 'true'); headers.set('Access-Control-Allow-Headers', 'Content-Type'); headers.set('Access-Control-Allow-Methods', 'GET,POST,OPTIONS'); return new Response(response.body, { status: response.status, headers }); }
 function json(value, status = 200) { return new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json; charset=utf-8' } }); }
 function b64url(value) { return btoa(value).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
