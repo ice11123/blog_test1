@@ -49,13 +49,9 @@ tags: ['标签']
 - GitHub 数据组件及站点统计
 - Plot3D、Bilibili、MiniBrowser、Spoiler、FriendLinks 等 MDX 组件
 
-## 源码来源与授权
-
-本项目基于众网友个人博客的优点借鉴与参考进行迁移和修改，感谢热心作者提供源码并授权使用、修改和发布。
-
 ## 管理台原型
 
-站名支持在 5 秒内连续点击 5 次打开 `/admin/` 管理台原型。当前版本只把文章草稿保存到浏览器 `localStorage`，不写入 GitHub，也不具备真正的身份认证；页面会明确显示此安全边界。
+站名支持在神秘操作后，触发输入密码，打开 `/admin/` 管理台原型。当前版本只把文章草稿保存到浏览器 `localStorage`，不写入 GitHub，也不具备真正的身份认证；页面会明确显示此安全边界。
 
 管理台已支持云端“发布到正式网站”按钮。部署 Cloudflare Worker 后，在构建环境设置 `PUBLIC_ADMIN_SYNC_API_URL`，即可从任意设备使用 GitHub 授权一键发布。Worker 配置见 [`worker/README.md`](worker/README.md)，接口安全边界和请求格式见 [`docs/admin-sync.md`](docs/admin-sync.md)。
 
@@ -82,6 +78,10 @@ node -e "const c=require('crypto'); process.stdout.write(c.createHash('sha256').
 ```
 
 将输出的哈希填入 `src/consts.ts` 的 `ADMIN_PASSWORD_HASH`。不要提交明文密码。前端哈希只能防止普通访客误入，不能替代服务端登录和 GitHub 仓库权限控制。
+
+## 源码来源与授权
+
+本项目基于众网友个人博客的优点借鉴与参考进行迁移和修改，感谢热心作者提供源码并授权使用、修改和发布。
 
 原项目的文章、个人资料、联系方式、社交账号、友情链接、图片资源及 Git 历史均未迁移。
 
