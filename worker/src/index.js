@@ -23,7 +23,9 @@ export default {
     try {
       if (url.pathname === '/auth/github' && request.method === 'GET') return githubLogin(url, env);
       if (url.pathname === '/auth/callback' && request.method === 'GET') return await githubCallback(request, url, env);
+      if (url.pathname === '/health' && request.method === 'GET') return await health(request, env);
       if (url.pathname === '/auth/me' && request.method === 'GET') return await authMe(request, env);
+      if (url.pathname === '/api/status' && request.method === 'GET') return await adminStatus(request, env);
       if (url.pathname === '/api/sync' && request.method === 'POST') return await syncPost(request, env);
       if (url.pathname === '/api/delete' && request.method === 'POST') return await deletePost(request, env);
       return cors(json({ ok: false, message: 'Not found' }, 404), env, request);
@@ -97,6 +99,64 @@ async function authMe(request, env) {
   return cors(json(session ? { ok: true, login: session.login, csrfToken: session.csrfToken } : { ok: false }, session ? 200 : 401), env, request);
 }
 
+async function health(request, env) {
+  requireOrigin(request, env);
+  const checkedAt = new Date().toISOString();
+  try {
+    requireEnv(env, ['ALLOWED_ORIGIN', 'GITHUB_OWNER', 'GITHUB_REPO', 'GITHUB_BRANCH']);
+    if (!env.SESSIONS || typeof env.SESSIONS.get !== 'function') throw new Error('KV binding unavailable');
+    await env.SESSIONS.get('__health__');
+    return cors(json({ ok: true, checkedAt }), env, request);
+  } catch {
+    return cors(json({ ok: false, checkedAt }, 503), env, request);
+  }
+}
+
+async function adminStatus(request, env) {
+  const session = await requireReadSession(request, env);
+  const token = await decryptSecret(session.tokenCipher, env.SESSION_SECRET);
+  let headSha = '';
+  let repositoryOk = true;
+  try {
+    headSha = await getBranchHead(token, env);
+  } catch {
+    repositoryOk = false;
+  }
+  let deployment = { status: repositoryOk ? 'unknown' : 'failure', githubStatus: '', conclusion: null, updatedAt: null, url: null };
+  if (repositoryOk) {
+    try {
+      const runs = await githubFetch(`/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/actions/workflows/deploy.yml/runs`, token, {
+        query: { branch: env.GITHUB_BRANCH, per_page: '1' },
+      });
+      const run = Array.isArray(runs?.workflow_runs) ? runs.workflow_runs[0] : null;
+      if (run) deployment = {
+        status: normalizeDeploymentStatus(run.status, run.conclusion),
+        githubStatus: String(run.status || ''),
+        conclusion: run.conclusion ? String(run.conclusion) : null,
+        updatedAt: typeof run.updated_at === 'string' ? run.updated_at : null,
+        url: typeof run.html_url === 'string' ? run.html_url : null,
+      };
+    } catch {
+      deployment = { status: 'failure', githubStatus: '', conclusion: null, updatedAt: null, url: null };
+    }
+  }
+
+  return cors(json({
+    ok: true,
+    checkedAt: new Date().toISOString(),
+    login: session.login,
+    repository: {
+      ok: repositoryOk,
+      owner: env.GITHUB_OWNER,
+      name: env.GITHUB_REPO,
+      branch: env.GITHUB_BRANCH,
+      headSha: headSha || null,
+      commitUrl: headSha ? commitUrl(env, headSha) : null,
+    },
+    deployment,
+  }), env, request);
+}
+
 async function syncPost(request, env) {
   const session = await requireAdminSession(request, env);
   const payload = await readJsonBody(request, 300_000);
@@ -166,7 +226,8 @@ async function readSession(request, env) {
 async function githubFetch(path, token, options = {}) {
   const requestUrl = new URL(API + path);
   if (options.ref) requestUrl.searchParams.set('ref', options.ref);
-  const { ref: _ref, ...requestOptions } = options;
+  if (options.query) for (const [key, value] of Object.entries(options.query)) requestUrl.searchParams.set(key, String(value));
+  const { ref: _ref, query: _query, ...requestOptions } = options;
   let response;
   try {
     response = await fetch(requestUrl, {
@@ -197,6 +258,13 @@ async function requireAdminSession(request, env) {
   if (!session || session.login !== env.GITHUB_OWNER) throw new HttpError(401, '请先使用授权账号登录 GitHub');
   const csrfToken = request.headers.get('X-CSRF-Token') || '';
   if (csrfToken !== session.csrfToken) throw new HttpError(403, 'CSRF 校验失败');
+  return session;
+}
+
+async function requireReadSession(request, env) {
+  requireOrigin(request, env);
+  const session = await readSession(request, env);
+  if (!session || session.login !== env.GITHUB_OWNER) throw new HttpError(401, '请先使用授权账号登录 GitHub');
   return session;
 }
 
@@ -359,6 +427,10 @@ function cookie(name, value, maxAge, options = {}) {
 }
 
 function clearCookie(name) { return `${name}=; Max-Age=0; Path=/; SameSite=Lax; Secure; HttpOnly`; }
+function normalizeDeploymentStatus(status, conclusion) {
+  if (status !== 'completed') return 'pending';
+  return conclusion === 'success' ? 'success' : 'failure';
+}
 function oauthError(message, status) { const response = new Response(message, { status, headers: { 'Cache-Control': 'no-store' } }); response.headers.append('Set-Cookie', clearCookie('oauth_state')); return response; }
 function adminReturnUrl(env) { return new URL(DEFAULT_ADMIN_PATH, env.ALLOWED_ORIGIN).href; }
 function isAllowedOrigin(request, env) { return request.headers.get('Origin') === env.ALLOWED_ORIGIN; }

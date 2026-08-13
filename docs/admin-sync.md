@@ -4,6 +4,13 @@
 
 ```text
 管理台 → GitHub OAuth → Worker HttpOnly Cookie 会话 → GitHub Git Data API 单次提交 → main → Pages Actions
+
+管理台同时通过只读状态接口显示发布链路健康度：
+
+```text
+GET /health      → Worker 与 KV 基础状态（不要求登录）
+GET /api/status  → GitHub 账号、仓库 main HEAD、最近一次 Pages Actions（要求登录）
+```
 ```
 
 ## 安全边界
@@ -12,8 +19,11 @@
 - GitHub session 只保存在 Worker KV，并通过 `blog_session` HttpOnly Cookie 使用。
 - 前端不再保存 bearer session，也不会处理 `admin_token` URL 参数。
 - `/auth/me` 返回短期 CSRF token；前端只在当前页面内存保存该 token。
+- `/health` 和 `/api/status` 都要求精确的博客 Origin；状态响应不返回 OAuth token、Secret、CSRF token 或内部错误堆栈。
+- `/api/status` 是只读接口，不要求 CSRF token；`/api/sync` 与 `/api/delete` 等写接口仍必须校验 CSRF。
 - `/api/sync` 必须带本站 Origin、有效 HttpOnly Cookie 和 `X-CSRF-Token`。
 - Worker 只允许 GitHub 用户 `ice11123`，目标仓库为 `ice11123/blog_test1` 的 `main` 分支。
+- 管理台状态采用事件触发刷新：页面打开、OAuth 恢复、发布、删除或手动点击“重新检测”时更新，不做固定轮询。
 - OAuth token 使用 `SESSION_SECRET` 派生的 AES-GCM 密钥加密后再写入 KV。
 - 文章改名、移动和删除通过 Git Tree 单次提交完成，不再产生中间的新旧双版本。
 - 目标路径已存在且不属于当前文章时返回 409，避免覆盖其他文章。

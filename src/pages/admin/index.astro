@@ -27,6 +27,15 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
     localEditedAt: undefined,
   };
 });
+
+const systemCards = [
+  ['frontend', '管理台前端', '等待页面初始化'],
+  ['storage', '本地草稿存储', '等待存储检测'],
+  ['worker', 'Cloudflare Worker', '等待连接检测'],
+  ['github', 'GitHub 授权', '解锁后检测'],
+  ['repository', '目标仓库', '解锁后检测'],
+  ['deployment', 'GitHub Pages', '解锁后检测'],
+];
 ---
 
 <html lang="zh-cn">
@@ -37,61 +46,109 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
   <body class="admin-page">
     <Header />
     <main class="admin-shell">
-      <section class="admin-hero">
-        <p class="admin-kicker">ADMIN PROTOTYPE</p>
-        <h1>博客管理台</h1>
-        <p>这里可以编辑文章、标签和目录，保存本地草稿，并通过 GitHub 授权发布到正式网站。</p>
-        <div class="admin-warning" role="note">
-          安全提示：隐藏入口和站内密码只是界面门槛，真正的发布权限由云端 GitHub OAuth、HttpOnly 会话、Origin 与 CSRF 校验共同控制。本地草稿仍只保存在当前浏览器。
-        </div>
-      </section>
-
       <section id="admin-app" data-initial-drafts={JSON.stringify(initialDrafts)} data-sync-endpoint={ADMIN_SYNC_API_URL}>
+        <div class="admin-overview">
+          <section class="admin-intro">
+            <p class="admin-kicker">ADMIN PROTOTYPE</p>
+            <h1>博客管理台</h1>
+            <p class="admin-description">编辑网站中的文章、标签和目录，保存本地草稿，并通过 GitHub 授权发布到正式网站。</p>
+            <div class="admin-warning" role="note">
+              <strong>安全提示</strong>
+              <span>隐藏入口和站内密码只是界面门槛。正式发布由 GitHub OAuth、HttpOnly 会话、Origin 与 CSRF 校验共同保护；本地草稿仍只保存在当前浏览器。</span>
+            </div>
+          </section>
+
+          <section class="system-status" aria-labelledby="system-status-title" aria-live="polite">
+            <div class="system-status-heading">
+              <div>
+                <p class="status-eyebrow">PUBLISHING PIPELINE</p>
+                <h2 id="system-status-title">系统状态</h2>
+              </div>
+              <button type="button" class="status-refresh" data-status-refresh>
+                <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                重新检测
+              </button>
+            </div>
+            <div class="system-status-grid">
+              {systemCards.map(([key, title, initial], index) => (
+                <article class="system-card" data-system-card={key} data-state={index < 3 ? 'checking' : 'waiting'}>
+                  <header><span class="system-dot"></span><strong>{title}</strong><span data-card-state>{index < 3 ? '检测中' : '等待'}</span></header>
+                  <p data-card-value>{initial}</p>
+                  <small data-card-detail>请稍候</small>
+                  <a data-card-link hidden target="_blank" rel="noopener noreferrer">查看详情</a>
+                </article>
+              ))}
+            </div>
+          </section>
+        </div>
+
         <div class="admin-locked" data-locked>
           <h2>管理台已锁定</h2>
-          <p>请从顶部站名连续点击 5 次，再输入管理密码。</p>
+          <p>请从顶部站名连续点击 5 次，或使用下方按钮输入管理密码。</p>
           <button type="button" class="unlock-button" data-admin-open>输入管理密码</button>
         </div>
+
         <div class="admin-editor" data-editor hidden>
           <div class="admin-toolbar">
-            <div>
+            <button type="button" class="tree-mobile-trigger" data-tree-open aria-label="打开文章目录">
+              <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              文章目录
+            </button>
+            <div class="toolbar-status">
               <strong data-status>未保存</strong>
               <span class="admin-muted" data-count></span>
             </div>
             <div class="admin-actions">
               <button type="button" data-new>新建文章</button>
-              <button type="button" data-reset>恢复仓库初始内容</button>
+              <button type="button" data-reset>恢复仓库内容</button>
               <button type="button" data-export>导出当前文件</button>
-              <button type="button" class="sync-button" data-cloud-publish disabled={!ADMIN_SYNC_API_URL} title={ADMIN_SYNC_API_URL ? '通过云端 API 提交到 GitHub 并触发部署' : '尚未配置云端 API'}>发布到正式网站</button>
+              <button type="button" class="sync-button" data-cloud-publish disabled={!ADMIN_SYNC_API_URL} title={ADMIN_SYNC_API_URL ? '提交到 GitHub 并触发正式网站部署' : '尚未配置云端 API'}>发布到正式网站</button>
             </div>
           </div>
 
           <div class="admin-layout">
-            <aside class="admin-list" aria-label="文章列表">
+            <aside class="admin-tree-panel" data-tree-drawer aria-label="文章目录">
+              <div class="tree-panel-heading">
+                <strong>文章目录</strong>
+                <button type="button" data-tree-close aria-label="关闭文章目录">×</button>
+              </div>
               <label class="admin-search-label" for="admin-search">筛选文章</label>
               <input id="admin-search" type="search" placeholder="标题、标签或分类" data-search />
-              <div data-post-list></div>
+              <div class="admin-mode-toggle" data-tree-mode-toggle>
+                <button type="button" class="active" data-tree-mode="directory">目录结构</button>
+                <button type="button" data-tree-mode="tag">标签分类</button>
+              </div>
+              <div class="admin-tree-scroll" data-tree-scroll>
+                <ul class="admin-tree" data-post-tree></ul>
+              </div>
             </aside>
+            <div class="admin-tree-backdrop" data-tree-backdrop></div>
 
-            <form class="admin-form" data-form>
-              <div class="form-grid">
-                <label>标题<input name="title" required /></label>
-                <label>发布日期<input name="pubDate" type="date" required /></label>
-                <label class="wide">描述<textarea name="description" rows="2" required></textarea></label>
-                <label>一级目录<input name="dir1" placeholder="例如：开始" /></label>
-                <label>二级目录<input name="dir2" placeholder="可选" /></label>
-                <label class="wide">标签<input name="tags" placeholder="用逗号分隔，例如：Astro, 演示" /></label>
-                <label>文件格式<select name="format"><option value="mdx">MDX</option><option value="md">Markdown</option></select></label>
-                <label>草稿 ID<input name="id" readonly /></label>
+            <section class="admin-edit-column">
+              <div class="current-article-identity">
+                <span data-current-type>正在编辑文章</span>
+                <code data-current-path></code>
               </div>
-              <label class="body-label">正文（Markdown / MDX）<textarea name="body" rows="22" required></textarea></label>
-              <div class="form-actions">
-                <button type="submit" class="primary">保存本地草稿</button>
-                <button type="button" data-delete>删除当前草稿</button>
-                <span class="edited-at" data-edited-at>尚未修改</span>
-              </div>
-              <p class="sync-hint" data-sync-hint>{ADMIN_SYNC_API_URL ? '首次发布会跳转 GitHub 授权；授权账号必须是 ice11123。' : '尚未配置云端 API。配置后可从任意设备登录 GitHub 并一键发布。'}</p>
-            </form>
+              <form class="admin-form" data-form>
+                <div class="form-grid">
+                  <label>标题<input name="title" required /></label>
+                  <label>发布日期<input name="pubDate" type="date" required /></label>
+                  <label class="wide">描述<textarea name="description" rows="2" required></textarea></label>
+                  <label>一级目录<input name="dir1" placeholder="例如：数学" /></label>
+                  <label>二级目录<input name="dir2" placeholder="可选" /></label>
+                  <label class="wide">标签<input name="tags" placeholder="使用逗号分隔，例如：Astro, 数学" /></label>
+                  <label>文件格式<select name="format"><option value="mdx">MDX</option><option value="md">Markdown</option></select></label>
+                  <label>草稿 ID<input name="id" readonly /></label>
+                </div>
+                <label class="body-label">正文（Markdown / MDX）<textarea name="body" rows="22" required></textarea></label>
+                <div class="form-actions">
+                  <button type="submit" class="primary">保存本地草稿</button>
+                  <button type="button" data-delete>删除当前文章</button>
+                  <span class="edited-at" data-edited-at>尚未修改</span>
+                </div>
+                <p class="sync-hint">{ADMIN_SYNC_API_URL ? '首次发布会跳转 GitHub 授权；授权账号必须是 ice11123。' : '尚未配置云端 API，当前只能保存与导出本地草稿。'}</p>
+              </form>
+            </section>
 
             <article class="admin-preview" aria-live="polite">
               <div class="preview-heading"><span>实时预览</span><span class="admin-muted">基础 Markdown 预览</span></div>
@@ -102,279 +159,146 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
       </section>
     </main>
     <Footer />
+    <script src="../../scripts/admin-dashboard.ts"></script>
   </body>
 </html>
 
 <style>
-  .admin-page { --admin-accent: #4f46e5; --admin-surface: color-mix(in srgb, var(--background) 96%, #64748b); --admin-panel: color-mix(in srgb, var(--background-dark) 94%, var(--background)); --admin-line: color-mix(in srgb, var(--foreground) 14%, transparent); --admin-ink: var(--foreground); background: var(--admin-surface); }
-  .admin-shell { width: min(1840px, calc(100% - 2rem)); margin: 0 auto 3rem; }
-  .admin-hero { max-width: 850px; margin: 1rem auto 1.5rem; }
-  .admin-kicker { margin: 0; color: var(--accent); font-size: 0.72rem; letter-spacing: 0.16em; }
-  .admin-hero h1 { margin: 0.2rem 0 0.5rem; }
-  .admin-hero > p:not(.admin-kicker) { margin: 0 0 1rem; }
-  .admin-warning { padding: 0.85rem 1rem; border: 1px solid color-mix(in srgb, var(--admin-accent) 24%, var(--admin-line)); border-radius: 10px; background: color-mix(in srgb, var(--admin-accent) 7%, var(--admin-panel)); color: var(--admin-ink); font-size: 0.86rem; line-height: 1.55; }
-  .admin-locked { max-width: 520px; margin: 3rem auto; padding: 2rem; text-align: center; border: 1px solid var(--admin-line); border-radius: 16px; background: var(--admin-panel); box-shadow: 0 12px 32px color-mix(in srgb, #172033 8%, transparent); }
-  .unlock-button { margin-top: 1rem; min-height: 2.4rem; padding: 0.55rem 1rem; border: 0; border-radius: 9px; color: #fff; background: var(--admin-accent); font: inherit; font-weight: 650; cursor: pointer; transition: filter .18s ease, transform .18s ease; }
-  .unlock-button:hover { filter: brightness(1.08); transform: translateY(-1px); }
-  .admin-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; padding: 0.9rem 1.1rem; border: 1px solid var(--admin-line); border-radius: 14px; background: var(--admin-panel); box-shadow: 0 8px 24px color-mix(in srgb, #172033 7%, transparent); }
-  .admin-actions, .form-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-  .admin-actions button, .form-actions button, .admin-toolbar button { min-height: 2.25rem; padding: 0.5rem 0.8rem; border: 1px solid var(--admin-line); border-radius: 9px; color: var(--admin-ink); background: var(--admin-surface); cursor: pointer; transition: border-color .18s ease, background .18s ease, transform .18s ease; }
-  .admin-actions button:hover, .form-actions button:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--background)); transform: translateY(-1px); }
-  .admin-actions .primary, .form-actions .primary { color: #fff; background: var(--admin-accent); border-color: var(--admin-accent); }
-  .sync-button { color: var(--background) !important; background: color-mix(in srgb, var(--accent) 80%, #22c55e) !important; border-color: transparent !important; font-weight: 650; }
-  .sync-button:disabled { opacity: .58; cursor: not-allowed; transform: none !important; }
-  .admin-layout { display: grid; grid-template-columns: 280px minmax(560px, 1.2fr) minmax(520px, 1fr); gap: 1.15rem; align-items: start; }
-  .admin-list, .admin-form, .admin-preview { min-width: 0; padding: 1.15rem; border: 1px solid var(--admin-line); border-radius: 14px; background: var(--admin-panel); box-shadow: 0 8px 24px color-mix(in srgb, #172033 5%, transparent); }
-  .admin-list { position: sticky; top: 1rem; }
-  .admin-search-label, .body-label, .admin-form label { display: grid; gap: 0.35rem; font-size: 0.82rem; }
-  .admin-search-label { margin-bottom: 0.35rem; }
-  .admin-list input, .admin-form input, .admin-form textarea, .admin-form select { width: 100%; box-sizing: border-box; padding: 0.65rem 0.72rem; color: var(--admin-ink); background: var(--admin-surface); border: 1px solid var(--admin-line); border-radius: 9px; font: inherit; font-size: 0.9rem; outline: none; transition: border-color .18s ease, box-shadow .18s ease; }
-  .admin-list input:focus, .admin-form input:focus, .admin-form textarea:focus, .admin-form select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+  .admin-page { overflow-x: hidden; background: var(--background); }
+  .admin-shell { width: min(1880px, calc(100% - 3.5rem)); margin: 0 auto 3rem; }
+  .admin-overview { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(420px, .85fr); gap: 1rem; align-items: start; margin: 1rem 0 1.25rem; }
+  .admin-intro, .system-status, .admin-locked, .admin-toolbar, .admin-tree-panel, .admin-form, .admin-preview, .current-article-identity { border: 1px solid var(--border); background: color-mix(in srgb, var(--background-dark) 88%, transparent); }
+  .admin-intro, .system-status { padding: 1.15rem 1.25rem; border-radius: var(--radius-xl); }
+  .admin-kicker, .status-eyebrow { margin: 0; color: var(--accent); font-size: .7rem; font-weight: 650; letter-spacing: .15em; }
+  .admin-intro h1 { margin: .2rem 0 .45rem; font-size: clamp(1.75rem, 3vw, 2.35rem); }
+  .admin-description { margin: 0 0 .9rem; color: var(--foreground-dark); line-height: 1.6; }
+  .admin-warning { display: grid; grid-template-columns: auto 1fr; gap: .55rem; padding: .75rem .85rem; border: 1px solid var(--alert-note-border); border-radius: var(--radius-lg); background: var(--alert-note-bg); font-size: .82rem; line-height: 1.55; }
+  .admin-warning strong { color: var(--alert-note); }
+  .system-status-heading { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .8rem; }
+  .system-status-heading h2 { margin: .15rem 0 0; font-size: 1.2rem; }
+  .status-refresh { display: inline-flex; align-items: center; gap: .35rem; min-height: 2rem; padding: .4rem .65rem; color: var(--foreground); background: transparent; border: 1px solid var(--border); border-radius: var(--radius-lg); cursor: pointer; }
+  .status-refresh:hover { color: var(--accent); border-color: var(--accent); }
+  .system-status-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; }
+  .system-card { --state-color: var(--alert-warning); --state-bg: var(--alert-warning-bg); min-width: 0; padding: .65rem .72rem; border: 1px solid var(--state-color); border-radius: var(--radius-lg); background: var(--state-bg); transition: border-color var(--transition-base), background var(--transition-base); }
+  .system-card[data-state="ok"] { --state-color: var(--alert-tip); --state-bg: var(--alert-tip-bg); }
+  .system-card[data-state="error"] { --state-color: var(--alert-caution); --state-bg: var(--alert-caution-bg); }
+  .system-card header { display: flex; align-items: center; gap: .4rem; min-width: 0; }
+  .system-card header strong { min-width: 0; overflow: hidden; font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
+  .system-card header [data-card-state] { margin-left: auto; color: var(--state-color); font-size: .68rem; }
+  .system-dot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: var(--state-color); box-shadow: 0 0 0 3px color-mix(in srgb, var(--state-color) 18%, transparent); }
+  .system-card[data-state="checking"] .system-dot { animation: status-pulse 1.2s ease-in-out infinite; }
+  .system-card p { margin: .42rem 0 .15rem; overflow: hidden; font-size: .8rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+  .system-card small { display: block; min-height: 1.15em; overflow: hidden; color: var(--foreground-dark); font-size: .68rem; text-overflow: ellipsis; white-space: nowrap; }
+  .system-card a { display: inline-block; margin-top: .25rem; color: var(--state-color); font-size: .68rem; }
+  .system-card a[hidden] { display: none; }
+  @keyframes status-pulse { 50% { opacity: .35; transform: scale(.78); } }
+  @media (prefers-reduced-motion: reduce) { .system-card[data-state="checking"] .system-dot { animation: none; } }
+
+  .admin-locked { max-width: 520px; margin: 2rem auto; padding: 1.6rem; text-align: center; border-radius: var(--radius-xl); }
+  .admin-locked h2, .admin-locked p { margin: 0; }
+  .admin-locked p { margin-top: .55rem; color: var(--foreground-dark); }
+  .unlock-button, .admin-actions button, .form-actions button, .tree-mobile-trigger { min-height: 2.25rem; padding: .5rem .78rem; color: var(--foreground); background: transparent; border: 1px solid var(--border); border-radius: var(--radius-lg); font: inherit; cursor: pointer; transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast); }
+  .unlock-button { margin-top: 1rem; color: var(--background); background: var(--accent); border-color: var(--accent); font-weight: 650; }
+  .admin-toolbar { display: flex; align-items: center; gap: .75rem; margin-bottom: .8rem; padding: .7rem .8rem; border-radius: var(--radius-xl); }
+  .toolbar-status { display: flex; gap: .45rem; align-items: baseline; }
+  .admin-actions, .form-actions { display: flex; flex-wrap: wrap; gap: .45rem; }
+  .admin-actions { margin-left: auto; }
+  .admin-actions button:hover, .form-actions button:hover, .tree-mobile-trigger:hover { color: var(--accent); border-color: var(--accent); background: rgba(var(--accent-rgb), var(--alpha-hover)); }
+  .sync-button, .form-actions .primary { color: var(--background) !important; background: var(--accent) !important; border-color: var(--accent) !important; font-weight: 650; }
+  .sync-button:disabled { opacity: .5; cursor: not-allowed; }
+  .tree-mobile-trigger { display: none; align-items: center; gap: .35rem; }
+  .admin-layout { display: grid; grid-template-columns: 240px minmax(520px, 1.4fr) minmax(420px, 1fr); gap: .8rem; align-items: start; }
+  .admin-tree-panel, .admin-form, .admin-preview, .current-article-identity { min-width: 0; border-radius: var(--radius-xl); }
+  .admin-tree-panel { position: sticky; top: 1rem; display: flex; flex-direction: column; max-height: calc(100vh - 2rem); padding: .75rem; }
+  .tree-panel-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: .55rem; }
+  .tree-panel-heading [data-tree-close] { display: none; color: var(--foreground); background: transparent; border: 0; font-size: 1.5rem; cursor: pointer; }
+  .admin-search-label, .body-label, .admin-form label { display: grid; gap: .32rem; font-size: .8rem; }
+  .admin-search-label { margin-bottom: .3rem; }
+  .admin-tree-panel input, .admin-form input, .admin-form textarea, .admin-form select { width: 100%; box-sizing: border-box; padding: .58rem .65rem; color: var(--foreground); background: color-mix(in srgb, var(--background) 84%, transparent); border: 1px solid var(--border); border-radius: var(--radius-lg); font: inherit; font-size: .86rem; outline: none; }
+  .admin-tree-panel input:focus, .admin-form input:focus, .admin-form textarea:focus, .admin-form select:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(var(--accent-rgb), .14); }
+  .admin-mode-toggle { display: flex; position: relative; margin-top: .55rem; border-bottom: 1px solid var(--border); }
+  .admin-mode-toggle::after { content: ''; position: absolute; left: 0; bottom: -1px; width: 50%; height: 2px; border-radius: var(--radius-full); background: var(--accent); transition: transform var(--transition-spring); }
+  .admin-mode-toggle.tag-mode::after { transform: translateX(100%); }
+  .admin-mode-toggle button { flex: 1; padding: .42rem .2rem; color: var(--foreground-dark); background: transparent; border: 0; font: inherit; font-size: .78rem; cursor: pointer; }
+  .admin-mode-toggle button.active { color: var(--accent); }
+  .admin-tree-scroll { min-height: 0; margin-top: .4rem; overflow-y: auto; scrollbar-width: thin; }
+  .admin-tree, .admin-tree ul { margin: 0; padding: 0; list-style: none; }
+  .admin-node-header { display: flex; align-items: center; gap: .3rem; width: 100%; padding: .32rem .35rem; color: var(--foreground); background: transparent; border: 0; border-radius: 0 var(--radius-md) var(--radius-md) 0; font: inherit; cursor: pointer; }
+  .admin-node-header:hover { background: rgba(var(--accent-rgb), var(--alpha-hover)); }
+  .admin-node-arrow { width: 0; height: 0; flex: 0 0 auto; border-top: 4px solid transparent; border-bottom: 4px solid transparent; border-left: 5px solid var(--foreground-dark); transition: transform var(--transition-base); }
+  .admin-node-header.expanded .admin-node-arrow { transform: rotate(90deg); }
+  .admin-tree-node.has-current > .admin-node-header .admin-node-arrow { border-left-color: var(--accent); }
+  .admin-node-label { min-width: 0; overflow: hidden; font-size: .84rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+  .admin-node-count { margin-left: auto; padding: 0 6px; color: var(--foreground-dark); background: rgba(var(--accent-rgb), var(--alpha-bg)); border-radius: var(--radius-full); font-size: .66rem; }
+  .admin-node-children { position: relative; max-height: 4000px; padding-left: 1rem !important; overflow: hidden; transition: max-height var(--transition-slow); }
+  .admin-node-children.collapsed { max-height: 0; }
+  .admin-node-children.active-path::before { content: ''; position: absolute; left: .42rem; top: 0; width: 1px; height: 100%; background: var(--accent); opacity: .85; }
+  .admin-article-button { display: flex; align-items: center; gap: .35rem; width: 100%; padding: .3rem .38rem; color: var(--foreground-dark); background: transparent; border: 0; border-radius: 0 var(--radius-md) var(--radius-md) 0; text-align: left; cursor: pointer; }
+  .admin-article-button:hover { color: var(--foreground); background: rgba(var(--accent-rgb), var(--alpha-hover)); }
+  .admin-article-button.current { color: var(--accent-light); background: rgba(var(--accent-rgb), var(--alpha-active)); font-weight: 500; }
+  .admin-article-title { min-width: 0; overflow: hidden; font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
+  .admin-article-badges { display: flex; gap: .2rem; margin-left: auto; }
+  .admin-tree-badge { padding: 1px 4px; color: var(--alert-warning); border: 1px solid var(--alert-warning-border); border-radius: var(--radius-full); background: var(--alert-warning-bg); font-size: .55rem; white-space: nowrap; }
+  .admin-tree-badge.active { color: var(--alert-tip); border-color: var(--alert-tip-border); background: var(--alert-tip-bg); }
+  .admin-tree-badge.danger { color: var(--alert-caution); border-color: var(--alert-caution-border); background: var(--alert-caution-bg); }
+  .admin-edit-column { display: grid; gap: .55rem; }
+  .current-article-identity { display: grid; gap: .2rem; padding: .65rem .8rem; border-left: 3px solid var(--accent); }
+  .current-article-identity span { color: var(--accent); font-size: .72rem; font-weight: 650; }
+  .current-article-identity code { overflow: hidden; color: var(--foreground-dark); font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }
+  .admin-form, .admin-preview { padding: .9rem; }
   .admin-form textarea { resize: vertical; line-height: 1.5; }
-  .admin-form textarea[name="body"] { min-height: 540px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.86rem; }
-  .admin-form input[readonly] { opacity: 0.65; }
-  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .admin-form textarea[name="body"] { min-height: 530px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .84rem; }
+  .admin-form input[readonly] { opacity: .65; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .65rem; }
   .form-grid .wide { grid-column: 1 / -1; }
-  .body-label { margin-top: 0.85rem; }
-  .form-actions { margin-top: 0.85rem; }
-  .edited-at { align-self: center; margin-left: auto; color: var(--foreground-dark); font-size: 0.78rem; }
-  .sync-hint { margin: 0.7rem 0 0; color: var(--foreground-dark); font-size: 0.78rem; line-height: 1.5; }
-  .admin-post-item { display: grid; gap: 0.1rem; width: 100%; margin-top: 0.5rem; padding: 0.6rem; text-align: left; color: var(--foreground); background: transparent; border: 1px solid transparent; border-radius: 8px; cursor: pointer; }
-  .admin-post-item:hover, .admin-post-item.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, transparent); }
-  .admin-post-item small { opacity: 0.65; font-size: 0.72rem; }
-  .preview-heading { display: flex; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.75rem; font-size: 0.85rem; }
+  .body-label { margin-top: .7rem; }
+  .form-actions { margin-top: .7rem; }
+  .edited-at { align-self: center; margin-left: auto; color: var(--foreground-dark); font-size: .72rem; }
+  .sync-hint { margin: .55rem 0 0; color: var(--foreground-dark); font-size: .72rem; line-height: 1.5; }
+  .admin-preview { position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow-y: auto; }
+  .preview-heading { display: flex; justify-content: space-between; gap: .5rem; padding-bottom: .55rem; border-bottom: 1px solid var(--border); font-size: .82rem; }
   .preview-body { min-height: 360px; line-height: 1.7; overflow-wrap: anywhere; }
-  .preview-body h1, .preview-body h2, .preview-body h3 { margin: 1rem 0 0.5rem; }
-  .preview-body p { margin: 0.7rem 0; }
-  .preview-body pre { overflow-x: auto; padding: 0.75rem; background: var(--background-dark); border-radius: 8px; }
-  .preview-body code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
-  .admin-muted { opacity: 0.65; font-size: 0.78rem; }
-  @media (max-width: 1050px) { .admin-layout { grid-template-columns: 190px minmax(320px, 1fr); } .admin-preview { grid-column: 1 / -1; } }
-  @media (max-width: 720px) { .admin-shell { width: min(100% - 1rem, 680px); } .admin-toolbar { align-items: stretch; flex-direction: column; padding: .8rem; } .admin-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } .admin-actions button { width: 100%; } .admin-layout { display: block; } .admin-list, .admin-form, .admin-preview { position: static; margin-bottom: 1rem; padding: .85rem; } .form-grid { grid-template-columns: 1fr; } .form-grid .wide { grid-column: auto; } .edited-at { width: 100%; margin-left: 0; } .admin-form textarea[name="body"] { min-height: 420px; } }
-</style>
+  .preview-body h1, .preview-body h2, .preview-body h3 { margin: 1rem 0 .5rem; }
+  .preview-body p { margin: .7rem 0; }
+  .preview-body pre { overflow-x: auto; padding: .75rem; background: var(--background); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+  .preview-body img { max-width: 100%; height: auto; }
+  .admin-muted { color: var(--foreground-dark); font-size: .72rem; }
+  .admin-tree-backdrop { display: none; }
 
-<script>
-  // @ts-nocheck -- 管理台原型脚本运行时由 DOM 约束保护。
-  import { marked } from 'marked';
-
-  const ADMIN_UNLOCK_STORAGE_KEY = 'blog-test1-admin-unlocked';
-  const PENDING_CLOUD_PUBLISH_KEY = 'blog-test1-pending-cloud-publish-v1';
-  const PENDING_CLOUD_DELETE_KEY = 'blog-test1-pending-cloud-delete-v1';
-  const LEGACY_ADMIN_SESSION_KEY = 'blog-test1-cloud-session-v1';
-
-  const STORAGE_KEY = 'blog-test1-admin-drafts-v1';
-  const normalizePublishedPath = (post) => {
-    if (typeof post.publishedPath !== 'string' || !post.publishedPath) return { ...post };
-    const path = post.publishedPath.replaceAll('\\', '/');
-    const parts = path.split('/');
-    if (!path.startsWith('src/content/blog/') || parts.some((part) => !part || part === '.' || part === '..')) return { ...post, publishedPath: undefined };
-    if (/\.(?:md|mdx)$/i.test(path)) return { ...post, publishedPath: path };
-    if (!/^[^/]+(?:\/[^/]+)*$/.test(path.slice('src/content/blog/'.length))) return { ...post, publishedPath: undefined };
-    return { ...post, publishedPath: `${path}.${post.format === 'md' ? 'md' : 'mdx'}` };
-  };
-  const clonePost = (post) => ({ ...normalizePublishedPath(post), tags: [...(post.tags || [])] });
-  const app = document.querySelector('#admin-app');
-  const initialDrafts = app ? JSON.parse(app.getAttribute('data-initial-drafts') || '[]') : [];
-  const readDrafts = () => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const parsed = raw ? JSON.parse(raw) : null;
-      if (!Array.isArray(parsed)) return initialDrafts.map(clonePost);
-      const initial = initialDrafts.map(clonePost);
-      const initialIds = new Set(initial.map(post => post.id));
-      const initialPaths = new Set(initial.map(post => post.publishedPath).filter(Boolean));
-      const merged = initial.map(post => {
-        const local = parsed.find(item => item.id === post.id || (item.publishedPath && item.publishedPath === post.publishedPath));
-        return local ? clonePost({ ...post, ...local, orphaned: false, repositoryPending: false }) : post;
-      });
-      for (const item of parsed) {
-        const post = clonePost(item);
-        if (initialIds.has(post.id) || (post.publishedPath && initialPaths.has(post.publishedPath))) continue;
-        if (post.deleted) continue;
-        merged.push({ ...post, orphaned: Boolean(post.publishedPath) && !post.repositoryPending });
-      }
-      return merged;
-    } catch { return initialDrafts.map(clonePost); }
-  };
-  const writeDrafts = (posts) => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(posts)); } catch {} };
-  const saveDraft = (post) => writeDrafts([...readDrafts().filter(item => item.id !== post.id), clonePost(post)]);
-  const removeDraft = (id) => writeDrafts(readDrafts().filter(post => post.id !== id));
-  const resetDrafts = () => { try { localStorage.removeItem(STORAGE_KEY); } catch {} };
-  const slugifyAdminId = (title) => `draft/${title.trim().toLowerCase().replace(/[^\\p{L}\\p{N}]+/gu, '-').replace(/^-+|-+$/g, '') || 'untitled'}-${Date.now()}`;
-  const draftToMarkdown = (post) => ['---', `title: ${JSON.stringify(post.title)}`, `description: ${JSON.stringify(post.description)}`, `pubDate: ${post.pubDate}`, ...(post.dir1 ? [`dir1: ${JSON.stringify(post.dir1)}`] : []), ...(post.dir2 ? [`dir2: ${JSON.stringify(post.dir2)}`] : []), `tags: [${post.tags.map(tag => JSON.stringify(tag)).join(', ')}]`, '---', '', post.body.trim(), ''].join('\\n');
-
-  if (app) {
-    let drafts = readDrafts();
-    let selectedId = drafts[0]?.id || '';
-    const editor = app.querySelector('[data-editor]');
-    const locked = app.querySelector('[data-locked]');
-    const form = app.querySelector('[data-form]');
-    const list = app.querySelector('[data-post-list]');
-    const preview = app.querySelector('[data-preview]');
-    const status = app.querySelector('[data-status]');
-    const count = app.querySelector('[data-count]');
-    const field = (name) => form?.querySelector(`[name="${name}"]`);
-    const escapeHtml = (value) => value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
-    let previewTimer;
-    let editedAt = '';
-    const formatEditedAt = (value) => value ? `最新修改于 ${new Date(value).toLocaleString('zh-CN', { hour12: false })}` : '尚未修改';
-    const renderMarkdown = (value) => {
-      let source = value.replace(/^---[\s\S]*?---\s*/m, '').replace(/^\s*(import|export)\s+.*$/gm, '');
-      source = source.replace(/<([A-Z][\w]*)\b[^>]*\/>/g, (_, name) => `\n[组件预览：${name}]\n`);
-      source = source.replace(/<([A-Z][\w]*)\b[^>]*>[\s\S]*?<\/\1>/g, (_, name) => `\n[组件预览：${name}]\n`);
-      source = source.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => `\n[数学公式] ${math.trim()}\n`);
-      source = source.replace(/(?<!\$)\$([^$\n]+)\$(?!\$)/g, (_, math) => `[行内公式：${math.trim()}]`);
-      const renderer = new marked.Renderer();
-      renderer.html = ({ text }) => escapeHtml(text);
-      const safeUrl = (value) => /^(?:https?:|mailto:|\/|#)/i.test(String(value || '')) ? String(value) : '';
-      renderer.link = ({ href, title, text }) => {
-        const url = safeUrl(href);
-        const label = escapeHtml(text || href || '链接');
-        if (!url) return label;
-        const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
-        return `<a href="${escapeHtml(url)}"${titleAttr} rel="noopener noreferrer">${label}</a>`;
-      };
-      renderer.image = ({ href, title, text }) => {
-        const url = safeUrl(href);
-        if (!url) return escapeHtml(text || '图片');
-        const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
-        return `<img src="${escapeHtml(url)}" alt="${escapeHtml(text || '')}"${titleAttr} loading="lazy" />`;
-      };
-      return marked.parse(source, { breaks: true, gfm: true, async: false, renderer });
-    };
-    const setStatus = (text) => { if (status) status.textContent = text; };
-    const endpoint = () => (app.getAttribute('data-sync-endpoint') || '').replace(/\/$/, '');
-    let csrfToken = '';
-    const authHeaders = () => csrfToken ? { 'X-CSRF-Token': csrfToken } : {};
-    const publishPost = async (post, button) => {
-      const api = endpoint();
-      if (!api) { setStatus('尚未配置云端 API'); return false; }
-      if (post.orphaned) { setStatus('该草稿对应的仓库文章已不存在，请新建文章后再发布'); return false; }
-      button && (button.disabled = true);
-      setStatus('正在发布…');
-      try {
-        const response = await fetch(`${api}/api/sync`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, credentials: 'include', body: JSON.stringify({ post }) });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(result?.message || `HTTP ${response.status}`);
-        localStorage.removeItem(PENDING_CLOUD_PUBLISH_KEY);
-        if (result.path) {
-          const updated = { ...post, publishedPath: result.path, repositoryPending: true, orphaned: false, localEditedAt: new Date().toISOString() };
-          saveDraft(updated);
-          drafts = readDrafts();
-          selectedId = updated.id;
-          renderList();
-          loadForm();
-        }
-        setStatus(result.commitUrl ? `发布成功：${result.commitUrl}` : '发布成功，等待 Actions 部署');
-        return true;
-      } catch (error) {
-        setStatus(`发布失败：${error instanceof Error ? error.message : '云端请求失败'}`);
-        return false;
-      } finally { button && (button.disabled = false); }
-    };
-    const current = () => drafts.find(post => post.id === selectedId);
-    const loadForm = () => {
-      const post = current();
-      if (!post || !form) return;
-      ['id', 'title', 'description', 'pubDate', 'dir1', 'dir2', 'body', 'format'].forEach(name => { const input = field(name); if (input) input.value = post[name] || ''; });
-      const tags = field('tags'); if (tags) tags.value = post.tags.join(', ');
-      editedAt = post.localEditedAt || '';
-      const edited = app.querySelector('[data-edited-at]'); if (edited) edited.textContent = formatEditedAt(editedAt);
-      updatePreview();
-    };
-    const updatePreview = () => { const body = field('body'); if (preview && body) preview.innerHTML = renderMarkdown(body.value); };
-    const queuePreviewUpdate = () => { editedAt = new Date().toISOString(); const edited = app.querySelector('[data-edited-at]'); if (edited) edited.textContent = formatEditedAt(editedAt); setStatus('有未保存修改'); clearTimeout(previewTimer); previewTimer = setTimeout(updatePreview, 180); };
-    const renderList = () => {
-      if (!list) return;
-      const query = (field('search')?.value || app.querySelector('[data-search]')?.value || '').toLowerCase();
-      list.innerHTML = drafts.filter(post => !post.deleted && `${post.title} ${post.tags.join(' ')} ${post.dir1} ${post.dir2}`.toLowerCase().includes(query)).map(post => `<button type="button" class="admin-post-item ${post.id === selectedId ? 'active' : ''}" data-id="${escapeHtml(post.id)}"><span>${escapeHtml(post.title || '未命名文章')}</span><small>${post.orphaned ? '待重新绑定 · ' : ''}${escapeHtml(post.dir1 || '未分类')} · ${escapeHtml(post.tags.join(', ') || '无标签')}</small></button>`).join('') || '<p class="admin-muted">暂无文章</p>';
-      list.querySelectorAll('[data-id]').forEach(button => button.addEventListener('click', () => { selectedId = button.getAttribute('data-id') || ''; loadForm(); renderList(); }));
-      if (count) count.textContent = `共 ${drafts.filter(post => !post.deleted).length} 篇`;
-    };
-    const collect = () => ({ ...current(), id: field('id')?.value || selectedId, title: field('title')?.value || '', description: field('description')?.value || '', pubDate: field('pubDate')?.value || '', dir1: field('dir1')?.value || '', dir2: field('dir2')?.value || '', tags: (field('tags')?.value || '').split(',').map(tag => tag.trim()).filter(Boolean), body: field('body')?.value || '', format: field('format')?.value || 'mdx', localEditedAt: editedAt });
-    const save = () => { const post = collect(); saveDraft(post); drafts = readDrafts(); selectedId = post.id; renderList(); loadForm(); setStatus('已保存到本浏览器'); };
-    form?.addEventListener('submit', event => { event.preventDefault(); save(); });
-    form?.addEventListener('input', queuePreviewUpdate);
-    app.querySelector('[data-search]')?.addEventListener('input', renderList);
-    app.querySelector('[data-new]')?.addEventListener('click', () => { const post = { id: slugifyAdminId('未命名文章'), title: '未命名文章', description: '', pubDate: new Date().toISOString().slice(0, 10), dir1: '', dir2: '', tags: [], body: '# 新文章\n\n在这里开始写作。', format: 'mdx' }; saveDraft(post); drafts = readDrafts(); selectedId = post.id; renderList(); loadForm(); });
-    const removeLocalPost = (id, keepTombstone = false) => {
-      if (keepTombstone) writeDrafts(readDrafts().map(post => post.id === id ? { ...post, deleted: true } : post));
-      else removeDraft(id);
-      drafts = readDrafts(); selectedId = drafts.find(post => !post.deleted)?.id || ''; renderList(); loadForm();
-    };
-    const deleteRemotePost = async (post, button) => {
-      const api = endpoint();
-      if (!api || !post.publishedPath) { removeLocalPost(post.id); setStatus('已删除本地草稿'); return true; }
-      button && (button.disabled = true);
-      try {
-        const me = await fetch(`${api}/auth/me`, { credentials: 'include' });
-        if (!me.ok) {
-          localStorage.setItem(PENDING_CLOUD_DELETE_KEY, JSON.stringify(post));
-          window.location.href = `${api}/auth/github`;
-          return false;
-        }
-        const auth = await me.json().catch(() => ({}));
-        csrfToken = auth?.csrfToken || '';
-        if (!csrfToken) throw new Error('未获取到 CSRF token');
-        const response = await fetch(`${api}/api/delete`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, credentials: 'include', body: JSON.stringify({ publishedPath: post.publishedPath, title: post.title }) });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(result?.message || `HTTP ${response.status}`);
-        localStorage.removeItem(PENDING_CLOUD_DELETE_KEY);
-        removeLocalPost(post.id, true);
-        setStatus(result.commitUrl ? `正式文章已删除：${result.commitUrl}` : '正式文章已删除，等待 Actions 部署');
-        return true;
-      } catch (error) { setStatus(`删除失败：${error instanceof Error ? error.message : '云端请求失败'}`); return false; }
-      finally { button && (button.disabled = false); }
-    };
-    const deleteButton = app.querySelector('[data-delete]');
-    deleteButton?.addEventListener('click', () => { const post = current(); if (!post || !confirm(post.publishedPath ? '确定删除本地草稿并从正式网站删除这篇文章吗？' : '确定删除当前本地草稿吗？')) return; void deleteRemotePost(post, deleteButton); });
-    app.querySelector('[data-reset]')?.addEventListener('click', () => { if (!confirm('将清除本浏览器中的全部草稿并恢复仓库初始内容，继续吗？')) return; resetDrafts(); drafts = readDrafts(); selectedId = drafts[0]?.id || ''; renderList(); loadForm(); setStatus('已恢复初始内容'); });
-    app.querySelector('[data-export]')?.addEventListener('click', () => { const post = current(); if (!post) return; const blob = new Blob([draftToMarkdown(collect())], { type: 'text/markdown;charset=utf-8' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `${post.title || 'untitled'}.${post.format}`; link.click(); URL.revokeObjectURL(url); setStatus('已导出文件'); });
-    const cloudPublishButton = app.querySelector('[data-cloud-publish]');
-    cloudPublishButton?.addEventListener('click', async () => {
-      const api = endpoint();
-      if (!api) { setStatus('尚未配置云端 API'); return; }
-      const post = collect();
-      if (!post.title.trim() || !post.pubDate) { setStatus('请先填写标题和发布日期'); return; }
-      if (!confirm('确认通过云端提交当前文章并触发正式网站部署吗？')) return;
-      try {
-        const me = await fetch(`${api}/auth/me`, { credentials: 'include' });
-        if (!me.ok) {
-          localStorage.setItem(PENDING_CLOUD_PUBLISH_KEY, JSON.stringify(post));
-          window.location.href = `${api}/auth/github`;
-          return;
-        }
-        const auth = await me.json().catch(() => ({}));
-        csrfToken = auth?.csrfToken || '';
-        if (!csrfToken) throw new Error('未获取到 CSRF token');
-        await publishPost(post, cloudPublishButton);
-      } catch (error) { setStatus(`登录检查失败：${error instanceof Error ? error.message : '云端请求失败'}`); }
-    });
-
-    const unlocked = sessionStorage.getItem(ADMIN_UNLOCK_STORAGE_KEY) === 'true';
-    if (unlocked) {
-      locked?.setAttribute('hidden', '');
-      editor?.removeAttribute('hidden');
-    }
-    renderList();
-    loadForm();
-    const initializeCloudSession = async () => {
-      localStorage.removeItem(LEGACY_ADMIN_SESSION_KEY);
-      if (!endpoint() || sessionStorage.getItem(ADMIN_UNLOCK_STORAGE_KEY) !== 'true') return;
-      try {
-        const me = await fetch(`${endpoint()}/auth/me`, { credentials: 'include' });
-        if (!me.ok) return;
-        const auth = await me.json().catch(() => ({}));
-        csrfToken = auth?.csrfToken || '';
-        if (!csrfToken) return;
-        const pendingRaw = localStorage.getItem(PENDING_CLOUD_PUBLISH_KEY);
-        if (pendingRaw) await publishPost(JSON.parse(pendingRaw), cloudPublishButton);
-        const pendingDeleteRaw = localStorage.getItem(PENDING_CLOUD_DELETE_KEY);
-        if (pendingDeleteRaw) await deleteRemotePost(JSON.parse(pendingDeleteRaw), deleteButton);
-      } catch (error) {
-        setStatus(`恢复待发布文章失败：${error instanceof Error ? error.message : '云端请求失败'}`);
-      }
-    };
-    void initializeCloudSession();
+  @media (max-width: 1180px) {
+    .admin-layout { grid-template-columns: 220px minmax(430px, 1fr); }
+    .admin-preview { grid-column: 1 / -1; position: static; max-height: none; }
   }
-</script>
+  @media (max-width: 900px) {
+    .admin-overview { grid-template-columns: 1fr; }
+    .admin-layout { grid-template-columns: 210px minmax(0, 1fr); }
+  }
+  @media (max-width: 760px) {
+    .admin-shell { width: min(100% - 1rem, 720px); }
+    .system-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .admin-warning { grid-template-columns: 1fr; }
+    .admin-toolbar { align-items: stretch; flex-wrap: wrap; }
+    .tree-mobile-trigger { display: inline-flex; }
+    .toolbar-status { flex: 1; align-self: center; }
+    .admin-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; margin-left: 0; }
+    .admin-layout { display: block; }
+    .admin-tree-panel { position: fixed; z-index: 1300; left: -286px; top: 0; width: 280px; height: 100dvh; max-height: none; box-sizing: border-box; border-radius: 0 var(--radius-xl) var(--radius-xl) 0; background: rgba(var(--background-rgb), .96); backdrop-filter: blur(16px); visibility: hidden; transition: left var(--transition-slow), visibility 0s var(--transition-slow); }
+    .admin-tree-panel.open { left: 0; visibility: visible; transition: left var(--transition-slow), visibility 0s; }
+    .tree-panel-heading [data-tree-close] { display: block; }
+    .admin-tree-backdrop { display: block; position: fixed; z-index: 1290; inset: 0; background: rgba(var(--backdrop-rgb), var(--alpha-overlay-backdrop)); opacity: 0; visibility: hidden; transition: opacity var(--transition-base), visibility 0s var(--transition-base); }
+    .admin-tree-backdrop.open { opacity: 1; visibility: visible; transition: opacity var(--transition-base), visibility 0s; }
+    :global(body.admin-drawer-open) { overflow: hidden; }
+    .admin-preview { margin-top: .8rem; }
+    .form-grid { grid-template-columns: 1fr; }
+    .form-grid .wide { grid-column: auto; }
+    .edited-at { width: 100%; margin-left: 0; }
+    .admin-form textarea[name="body"] { min-height: 430px; }
+  }
+  @media (max-width: 430px) {
+    .system-status-grid { grid-template-columns: 1fr; }
+    .system-status-heading { align-items: flex-start; }
+    .status-refresh { white-space: nowrap; }
+    .admin-intro, .system-status { padding: .9rem; }
+    .admin-actions { grid-template-columns: 1fr; }
+  }
+</style>

@@ -2,6 +2,13 @@
 
 Worker 负责 GitHub OAuth 和管理台文章发布。GitHub OAuth token 加密后保存在 Worker KV，会话通过 HttpOnly Cookie 传递给本站管理台。
 
+此外提供两个状态接口：
+
+- `GET /health`：检测 Worker 配置和 KV 绑定，不要求登录，但要求合法 Origin。
+- `GET /api/status`：使用当前 HttpOnly 会话读取目标仓库 `main` HEAD 和最近一次 `deploy.yml` 工作流状态。
+
+状态接口只返回展示所需的布尔状态、时间、公开 GitHub URL 和短期运行信息，不返回任何 Secret、OAuth token、CSRF token 或原始 GitHub 错误。
+
 ## OAuth 配置
 
 GitHub Developer Settings → OAuth Apps：

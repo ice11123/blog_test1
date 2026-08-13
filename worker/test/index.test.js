@@ -50,6 +50,81 @@ test('未登录 auth/me 返回 401 且不泄露会话', async () => {
   assert.equal((await response.json()).ok, false);
 });
 
+test('health 检查 Worker 与 KV 且不返回敏感配置', async () => {
+  const response = await worker.fetch(new Request('https://worker.test/health', { headers: { Origin: env.ALLOWED_ORIGIN } }), env);
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.ok, true);
+  assert.match(body.checkedAt, /^\d{4}-\d{2}-\d{2}T/);
+  assert.doesNotMatch(JSON.stringify(body), /secret|token|client/i);
+});
+
+test('health 拒绝非法 Origin，KV 不可用时返回安全的 503', async () => {
+  const forbidden = await worker.fetch(new Request('https://worker.test/health', { headers: { Origin: 'https://evil.example' } }), env);
+  assert.equal(forbidden.status, 403);
+  const broken = await worker.fetch(new Request('https://worker.test/health', { headers: { Origin: env.ALLOWED_ORIGIN } }), { ...env, SESSIONS: null });
+  assert.equal(broken.status, 503);
+  assert.deepEqual(Object.keys(await broken.json()).sort(), ['checkedAt', 'ok']);
+});
+
+test('api/status 未登录返回 401', async () => {
+  const response = await worker.fetch(new Request('https://worker.test/api/status', { headers: { Origin: env.ALLOWED_ORIGIN } }), env);
+  assert.equal(response.status, 401);
+});
+
+test('api/status 返回仓库 HEAD 与最近部署且不泄露 token', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const target = String(url);
+    if (target.includes('/git/ref/heads/main')) return Response.json({ object: { sha: '0123456789abcdef' } });
+    if (target.includes('/actions/workflows/deploy.yml/runs')) return Response.json({ workflow_runs: [{ status: 'completed', conclusion: 'success', updated_at: '2026-08-13T10:00:00Z', html_url: 'https://github.com/ice11123/blog_test1/actions/runs/1' }] });
+    return new Response('not found', { status: 404 });
+  };
+  try {
+    const tokenCipher = await encryptSecret('github-token', env.SESSION_SECRET);
+    const sessionEnv = { ...env, SESSIONS: { get: async () => JSON.stringify({ tokenCipher, login: env.GITHUB_OWNER, csrfToken: 'csrf-ok' }), put: async () => {} } };
+    const response = await worker.fetch(new Request('https://worker.test/api/status', { headers: { Origin: env.ALLOWED_ORIGIN, Cookie: 'blog_session=session-id' } }), sessionEnv);
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.login, 'ice11123');
+    assert.equal(body.repository.headSha, '0123456789abcdef');
+    assert.equal(body.deployment.status, 'success');
+    assert.doesNotMatch(JSON.stringify(body), /github-token|tokenCipher|csrf-ok/);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('api/status 将进行中的部署归类为 pending', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const target = String(url);
+    if (target.includes('/git/ref/heads/main')) return Response.json({ object: { sha: 'head-sha' } });
+    if (target.includes('/actions/workflows/deploy.yml/runs')) return Response.json({ workflow_runs: [{ status: 'in_progress', conclusion: null, updated_at: '2026-08-13T10:00:00Z', html_url: 'https://github.com/run' }] });
+    return new Response('not found', { status: 404 });
+  };
+  try {
+    const tokenCipher = await encryptSecret('github-token', env.SESSION_SECRET);
+    const sessionEnv = { ...env, SESSIONS: { get: async () => JSON.stringify({ tokenCipher, login: env.GITHUB_OWNER, csrfToken: 'csrf-ok' }), put: async () => {} } };
+    const response = await worker.fetch(new Request('https://worker.test/api/status', { headers: { Origin: env.ALLOWED_ORIGIN, Cookie: 'blog_session=session-id' } }), sessionEnv);
+    assert.equal((await response.json()).deployment.status, 'pending');
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('api/status 仓库失败时仍返回可展示的安全状态', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response('upstream failed', { status: 500 });
+  try {
+    const tokenCipher = await encryptSecret('github-token', env.SESSION_SECRET);
+    const sessionEnv = { ...env, SESSIONS: { get: async () => JSON.stringify({ tokenCipher, login: env.GITHUB_OWNER, csrfToken: 'csrf-ok' }), put: async () => {} } };
+    const response = await worker.fetch(new Request('https://worker.test/api/status', { headers: { Origin: env.ALLOWED_ORIGIN, Cookie: 'blog_session=session-id' } }), sessionEnv);
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.repository.ok, false);
+    assert.equal(body.repository.headSha, null);
+    assert.equal(body.deployment.status, 'failure');
+    assert.doesNotMatch(JSON.stringify(body), /upstream failed|github-token/);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
 test('错误 Origin 的预检请求被拒绝', async () => {
   const response = await worker.fetch(new Request('https://worker.test/api/sync', { method: 'OPTIONS', headers: { Origin: 'https://evil.example' } }), env);
   assert.equal(response.status, 403);
