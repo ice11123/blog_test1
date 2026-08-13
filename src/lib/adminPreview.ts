@@ -35,6 +35,54 @@ function stripDocumentSyntax(source: string): string {
     .replace(/^(?:\s*(?:import|export)[^\n]*\n)+/m, '');
 }
 
+function preserveBlankLines(source: string, tokens: Map<string, string>): string {
+  const lines = source.replace(/\r\n?/g, '\n').split('\n');
+  const output: string[] = [];
+  let blankLineCount = 0;
+  let fenceMarker = '';
+
+  const flushBlankLines = (hasFollowingContent: boolean) => {
+    if (!blankLineCount) return;
+
+    // Markdown 本身只需要一个空行分隔段落；其余空行由预览专用占位符保留。
+    // 这里仅改变浏览器预览，保存和发布的正文仍保持用户输入的原始 Markdown。
+    const paragraphSeparator = output.length > 0 && hasFollowingContent ? 1 : 0;
+    if (paragraphSeparator) output.push('');
+
+    const preservedCount = blankLineCount - paragraphSeparator;
+    if (preservedCount > 0) {
+      const token = `ADMINPREVIEWBLANK${tokens.size}TOKEN`;
+      const spacers = '<span aria-hidden="true"></span>'.repeat(preservedCount);
+      tokens.set(token, `<div class="preview-blank-lines" aria-hidden="true">${spacers}</div>`);
+      output.push(token);
+    }
+    blankLineCount = 0;
+  };
+
+  for (const line of lines) {
+    const fence = line.match(/^\s*(`{3,}|~{3,})/);
+    if (fenceMarker) {
+      output.push(line);
+      if (fence && fence[1][0] === fenceMarker[0] && fence[1].length >= fenceMarker.length) fenceMarker = '';
+      continue;
+    }
+    if (fence) {
+      flushBlankLines(true);
+      fenceMarker = fence[1];
+      output.push(line);
+      continue;
+    }
+    if (!line.trim()) {
+      blankLineCount += 1;
+      continue;
+    }
+    flushBlankLines(true);
+    output.push(line);
+  }
+  flushBlankLines(false);
+  return output.join('\n');
+}
+
 function parseProps(raw: string): Record<string, string> {
   const props: Record<string, string> = {};
   const pattern = /([\w-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|\{([^}]*)\})/g;
@@ -157,12 +205,16 @@ export function renderPreview(source: string): string {
   const tokens = new Map<string, string>();
   const mathTokens = new Map<string, string>();
   let markdown = stripDocumentSyntax(source);
+  markdown = preserveBlankLines(markdown, tokens);
   markdown = extractComponents(markdown, tokens);
   markdown = extractMath(markdown, mathTokens);
   markdown = transformAlerts(markdown, tokens);
   let html = marked.parse(markdown, { gfm: true, breaks: true, async: false, renderer: createRenderer() }) as string;
   for (const [token, replacement] of tokens) {
-    html = html.replaceAll(token, replacement);
+    html = html
+      .replaceAll(`<p>${token}</p>\n`, replacement)
+      .replaceAll(`<p>${token}</p>`, replacement)
+      .replaceAll(token, replacement);
   }
   let sanitized = DOMPurify.sanitize(html, {
     ADD_ATTR: ['class', 'data-mermaid-code', 'data-preview-component', 'open'],
