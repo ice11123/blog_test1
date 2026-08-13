@@ -1,7 +1,8 @@
 const API = 'https://api.github.com';
 const SESSION_TTL = 60 * 60 * 24 * 7;
-const SESSION_PREFIX = 'session:v2:';
+const SESSION_PREFIX = 'session:v3:';
 const DEFAULT_ADMIN_PATH = '/blog_test1/admin/';
+const GITHUB_TIMEOUT_MS = 15_000;
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -24,6 +25,7 @@ export default {
       if (url.pathname === '/auth/callback' && request.method === 'GET') return await githubCallback(request, url, env);
       if (url.pathname === '/auth/me' && request.method === 'GET') return await authMe(request, env);
       if (url.pathname === '/api/sync' && request.method === 'POST') return await syncPost(request, env);
+      if (url.pathname === '/api/delete' && request.method === 'POST') return await deletePost(request, env);
       return cors(json({ ok: false, message: 'Not found' }, 404), env, request);
     } catch (error) {
       const status = error instanceof HttpError ? error.status : 500;
@@ -65,6 +67,7 @@ async function githubCallback(request, url, env) {
       method: 'POST',
       headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify({ client_id: env.GITHUB_OAUTH_CLIENT_ID, client_secret: env.GITHUB_OAUTH_CLIENT_SECRET, code }),
+      signal: AbortSignal.timeout(GITHUB_TIMEOUT_MS),
     });
     const tokenData = await tokenResponse.json();
     const token = tokenData?.access_token;
@@ -75,7 +78,8 @@ async function githubCallback(request, url, env) {
 
     const sessionId = crypto.randomUUID();
     const csrfToken = crypto.randomUUID();
-    await env.SESSIONS.put(`${SESSION_PREFIX}${sessionId}`, JSON.stringify({ token, login: user.login, csrfToken }), { expirationTtl: SESSION_TTL });
+    const tokenCipher = await encryptSecret(token, env.SESSION_SECRET);
+    await env.SESSIONS.put(`${SESSION_PREFIX}${sessionId}`, JSON.stringify({ tokenCipher, login: user.login, csrfToken }), { expirationTtl: SESSION_TTL });
 
     const response = new Response(null, { status: 302, headers: { Location: adminReturnUrl(env), 'Cache-Control': 'no-store' } });
     response.headers.append('Set-Cookie', clearCookie('oauth_state'));
@@ -94,19 +98,8 @@ async function authMe(request, env) {
 }
 
 async function syncPost(request, env) {
-  requireOrigin(request, env);
-  const session = await readSession(request, env);
-  if (!session || session.login !== env.GITHUB_OWNER) return cors(json({ ok: false, message: '请先使用授权账号登录 GitHub' }, 401), env, request);
-  const csrfToken = request.headers.get('X-CSRF-Token') || '';
-  if (!session.csrfToken || csrfToken !== session.csrfToken) throw new HttpError(403, 'CSRF 校验失败');
-
-  let payload;
-  try {
-    payload = await readJsonBody(request, 300_000);
-  } catch (error) {
-    if (error instanceof HttpError) throw error;
-    throw new HttpError(400, '请求体不是有效 JSON');
-  }
+  const session = await requireAdminSession(request, env);
+  const payload = await readJsonBody(request, 300_000);
 
   const post = validatePost(payload?.post);
   const ext = post.format === 'md' ? 'md' : 'mdx';
@@ -116,20 +109,43 @@ async function syncPost(request, env) {
   const filePath = `src/content/blog/${[...parts, `${name}.${ext}`].join('/')}`;
   const previousPath = post.publishedPath ? safePublishedPath(post.publishedPath) : null;
   const content = draftMarkdown(post);
-
-  const encodedFilePath = encodePath(filePath);
-  const existing = await githubFetch(`/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/contents/${encodedFilePath}`, session.token, { ref: env.GITHUB_BRANCH });
-  const body = { message: `更新文章：${post.title}`, content: toBase64(content), branch: env.GITHUB_BRANCH, ...(existing?.sha ? { sha: existing.sha } : {}) };
-  const result = await githubFetch(`/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/contents/${encodedFilePath}`, session.token, { method: 'PUT', body });
-
+  const token = await decryptSecret(session.tokenCipher, env.SESSION_SECRET);
+  const existing = await getRepositoryFile(filePath, token, env);
+  if (existing && previousPath !== filePath) throw new HttpError(409, '目标路径已存在其他文章，请修改目录或文件名');
+  if (previousPath === filePath && !existing) throw new HttpError(409, '原文章已不存在，请刷新管理台后重新绑定');
   if (previousPath && previousPath !== filePath) {
-    const previous = await githubFetch(`/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/contents/${encodePath(previousPath)}`, session.token, { ref: env.GITHUB_BRANCH });
-    if (previous?.sha) {
-      await githubFetch(`/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/contents/${encodePath(previousPath)}`, session.token, { method: 'DELETE', body: { message: `移除文章旧路径：${post.title}`, sha: previous.sha, branch: env.GITHUB_BRANCH } });
-    }
+    const previous = await getRepositoryFile(previousPath, token, env);
+    if (!previous) throw new HttpError(409, '原文章已不存在，请刷新管理台后重新绑定');
   }
 
-  return cors(json({ ok: true, commitSha: result.commit?.sha, commitUrl: result.commit?.html_url, path: filePath }), env, request);
+  const result = await commitArticleChanges({
+    token,
+    env,
+    message: `更新文章：${post.title}`,
+    additions: [{ path: filePath, content }],
+    deletions: previousPath && previousPath !== filePath ? [previousPath] : [],
+  });
+
+  return cors(json({ ok: true, commitSha: result.sha, commitUrl: commitUrl(env, result.sha), path: filePath }), env, request);
+}
+
+async function deletePost(request, env) {
+  const session = await requireAdminSession(request, env);
+  const payload = await readJsonBody(request, 20_000);
+  const publishedPath = safePublishedPath(payload?.publishedPath);
+  const title = typeof payload?.title === 'string' && payload.title.trim() ? payload.title.trim().slice(0, 200) : publishedPath.split('/').pop();
+  const token = await decryptSecret(session.tokenCipher, env.SESSION_SECRET);
+  const existing = await getRepositoryFile(publishedPath, token, env);
+  if (!existing) throw new HttpError(404, '正式文章不存在，可能已经被删除');
+
+  const result = await commitArticleChanges({
+    token,
+    env,
+    message: `删除文章：${title}`,
+    additions: [],
+    deletions: [publishedPath],
+  });
+  return cors(json({ ok: true, commitSha: result.sha, commitUrl: commitUrl(env, result.sha), path: publishedPath }), env, request);
 }
 
 async function readSession(request, env) {
@@ -137,34 +153,94 @@ async function readSession(request, env) {
   if (!id) return null;
   const raw = await env.SESSIONS.get(`${SESSION_PREFIX}${id}`);
   if (!raw) return null;
-  try { return JSON.parse(raw); } catch { return null; }
+  try {
+    const session = JSON.parse(raw);
+    return typeof session?.login === 'string' && typeof session?.csrfToken === 'string' && typeof session?.tokenCipher === 'string' ? session : null;
+  } catch { return null; }
 }
 
 async function githubFetch(path, token, options = {}) {
   const requestUrl = new URL(API + path);
   if (options.ref) requestUrl.searchParams.set('ref', options.ref);
   const { ref: _ref, ...requestOptions } = options;
-  const response = await fetch(requestUrl, {
-    ...requestOptions,
-    headers: {
-      Accept: 'application/vnd.github+json',
-      Authorization: `Bearer ${token}`,
-      'User-Agent': 'blog-test1-admin-api',
-      ...(requestOptions.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(requestOptions.headers || {}),
-    },
-    body: requestOptions.body ? JSON.stringify(requestOptions.body) : undefined,
-  });
+  let response;
+  try {
+    response = await fetch(requestUrl, {
+      ...requestOptions,
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${token}`,
+        'User-Agent': 'blog-test1-admin-api',
+        ...(requestOptions.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(requestOptions.headers || {}),
+      },
+      body: requestOptions.body ? JSON.stringify(requestOptions.body) : undefined,
+      signal: AbortSignal.timeout(GITHUB_TIMEOUT_MS),
+    });
+  } catch (error) {
+    if (error?.name === 'TimeoutError' || error?.name === 'AbortError') throw new HttpError(504, 'GitHub API 请求超时，请稍后重试');
+    throw error;
+  }
   if (response.status === 404) return null;
+  if (response.status === 409 || response.status === 422) throw new HttpError(409, '仓库内容已发生变化，请刷新管理台后重试');
   if (!response.ok) throw new Error(`GitHub API failed (${response.status})`);
   return response.json();
+}
+
+async function requireAdminSession(request, env) {
+  requireOrigin(request, env);
+  const session = await readSession(request, env);
+  if (!session || session.login !== env.GITHUB_OWNER) throw new HttpError(401, '请先使用授权账号登录 GitHub');
+  const csrfToken = request.headers.get('X-CSRF-Token') || '';
+  if (csrfToken !== session.csrfToken) throw new HttpError(403, 'CSRF 校验失败');
+  return session;
+}
+
+async function getRepositoryFile(path, token, env) {
+  return githubFetch(`/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/contents/${encodePath(path)}`, token, { ref: env.GITHUB_BRANCH });
+}
+
+async function commitArticleChanges({ token, env, message, additions, deletions }) {
+  const refPath = `/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/git/ref/heads/${encodeURIComponent(env.GITHUB_BRANCH)}`;
+  const head = await githubFetch(refPath, token);
+  const headSha = head?.object?.sha;
+  if (!headSha) throw new Error('GitHub ref response missing SHA');
+  const parent = await githubFetch(`/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/git/commits/${headSha}`, token);
+  const baseTree = parent?.tree?.sha;
+  if (!baseTree) throw new Error('GitHub commit response missing tree SHA');
+
+  const tree = [];
+  for (const addition of additions) {
+    const blob = await githubFetch(`/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/git/blobs`, token, {
+      method: 'POST',
+      body: { content: toBase64(addition.content), encoding: 'base64' },
+    });
+    if (!blob?.sha) throw new Error('GitHub blob response missing SHA');
+    tree.push({ path: addition.path, mode: '100644', type: 'blob', sha: blob.sha });
+  }
+  for (const path of deletions) tree.push({ path, mode: '100644', type: 'blob', sha: null });
+
+  const nextTree = await githubFetch(`/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/git/trees`, token, {
+    method: 'POST',
+    body: { base_tree: baseTree, tree },
+  });
+  const commit = await githubFetch(`/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/git/commits`, token, {
+    method: 'POST',
+    body: { message, tree: nextTree?.sha, parents: [headSha] },
+  });
+  if (!commit?.sha) throw new Error('GitHub commit response missing SHA');
+  await githubFetch(`/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/git/refs/heads/${encodeURIComponent(env.GITHUB_BRANCH)}`, token, {
+    method: 'PATCH',
+    body: { sha: commit.sha, force: false },
+  });
+  return commit;
 }
 
 function validatePost(post) {
   if (!post || typeof post !== 'object') throw new HttpError(400, '文章数据无效');
   for (const key of ['title', 'description', 'pubDate', 'body']) {
     const max = key === 'body' ? 200_000 : 2_000;
-    if (typeof post[key] !== 'string' || post[key].length > max) throw new HttpError(400, `字段无效：${key}`);
+    if (typeof post[key] !== 'string' || !post[key].trim() || post[key].length > max) throw new HttpError(400, `字段无效：${key}`);
   }
   for (const key of ['dir1', 'dir2', 'updatedDate', 'id', 'publishedPath']) {
     if (post[key] !== undefined && typeof post[key] !== 'string') throw new HttpError(400, `字段无效：${key}`);
@@ -173,8 +249,9 @@ function validatePost(post) {
     if (post[key] !== undefined && !isIsoDate(post[key])) throw new HttpError(400, `日期无效：${key}`);
   }
   if (!['md', 'mdx'].includes(post.format)) throw new HttpError(400, '文章格式无效');
-  if (post.dir1?.length > 200 || post.dir2?.length > 200 || post.publishedPath?.length > 500) throw new HttpError(400, '目录或路径过长');
-  const tags = Array.isArray(post.tags) ? post.tags.filter((x) => typeof x === 'string' && x.length <= 100).slice(0, 50) : [];
+  if (post.id?.length > 500 || post.dir1?.length > 200 || post.dir2?.length > 200 || post.publishedPath?.length > 500) throw new HttpError(400, '目录或路径过长');
+  if (post.tags !== undefined && (!Array.isArray(post.tags) || post.tags.some((x) => typeof x !== 'string' || !x.trim() || x.length > 100) || post.tags.length > 50)) throw new HttpError(400, '标签数据无效');
+  const tags = post.tags ?? [];
   return { ...post, tags };
 }
 
@@ -241,6 +318,30 @@ function requireEnv(env, keys) {
   for (const key of keys) if (!env[key] || env[key].includes('YOUR_')) throw new Error(`服务端缺少配置：${key}`);
 }
 
+async function encryptionKey(secret, usages) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(secret));
+  return crypto.subtle.importKey('raw', digest, { name: 'AES-GCM' }, false, usages);
+}
+
+async function encryptSecret(value, secret) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await encryptionKey(secret, ['encrypt']);
+  const encrypted = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(value)));
+  return `${bytesToBase64Url(iv)}.${bytesToBase64Url(encrypted)}`;
+}
+
+async function decryptSecret(value, secret) {
+  try {
+    const [ivPart, encryptedPart] = String(value || '').split('.');
+    if (!ivPart || !encryptedPart) throw new Error('Invalid cipher');
+    const key = await encryptionKey(secret, ['decrypt']);
+    const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: base64UrlToBytes(ivPart) }, key, base64UrlToBytes(encryptedPart));
+    return new TextDecoder().decode(decrypted);
+  } catch {
+    throw new HttpError(401, '会话已失效，请重新授权');
+  }
+}
+
 function getCookie(headers, name) {
   const raw = headers?.get('Cookie') || '';
   return raw.split(';').map((x) => x.trim()).find((x) => x.startsWith(`${name}=`))?.slice(name.length + 1) || '';
@@ -268,6 +369,9 @@ function cors(response, env, request) {
 
 function json(value, status = 200) { return new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } }); }
 function encodePath(value) { return encodeURIComponent(value).replaceAll('%2F', '/'); }
+function commitUrl(env, sha) { return `https://github.com/${encodeURIComponent(env.GITHUB_OWNER)}/${encodeURIComponent(env.GITHUB_REPO)}/commit/${encodeURIComponent(sha)}`; }
 function toBase64(value) { const bytes = new TextEncoder().encode(value); let binary = ''; for (const byte of bytes) binary += String.fromCharCode(byte); return btoa(binary); }
+function bytesToBase64Url(bytes) { let binary = ''; for (const byte of bytes) binary += String.fromCharCode(byte); return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function base64UrlToBytes(value) { const normalized = value.replace(/-/g, '+').replace(/_/g, '/'); const binary = atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=')); return Uint8Array.from(binary, (char) => char.charCodeAt(0)); }
 
-export { adminReturnUrl, isAllowedOrigin, readJsonBody, safePublishedPath, validatePost };
+export { adminReturnUrl, decryptSecret, encryptSecret, isAllowedOrigin, readJsonBody, safePublishedPath, validatePost };

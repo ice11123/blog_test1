@@ -12,6 +12,8 @@ export interface AdminPostDraft {
   deleted?: boolean;
   localEditedAt?: string;
   publishedPath?: string;
+  orphaned?: boolean;
+  repositoryPending?: boolean;
 }
 
 export const ADMIN_DRAFTS_STORAGE_KEY = 'blog-test1-admin-drafts-v1';

@@ -3,7 +3,7 @@
 管理台通过 Cloudflare Worker 完成 GitHub OAuth 和文章提交：
 
 ```text
-管理台 → GitHub OAuth → Worker HttpOnly Cookie 会话 → GitHub Contents API → main → Pages Actions
+管理台 → GitHub OAuth → Worker HttpOnly Cookie 会话 → GitHub Git Data API 单次提交 → main → Pages Actions
 ```
 
 ## 安全边界
@@ -14,6 +14,9 @@
 - `/auth/me` 返回短期 CSRF token；前端只在当前页面内存保存该 token。
 - `/api/sync` 必须带本站 Origin、有效 HttpOnly Cookie 和 `X-CSRF-Token`。
 - Worker 只允许 GitHub 用户 `ice11123`，目标仓库为 `ice11123/blog_test1` 的 `main` 分支。
+- OAuth token 使用 `SESSION_SECRET` 派生的 AES-GCM 密钥加密后再写入 KV。
+- 文章改名、移动和删除通过 Git Tree 单次提交完成，不再产生中间的新旧双版本。
+- 目标路径已存在且不属于当前文章时返回 409，避免覆盖其他文章。
 
 ## 部署配置
 
@@ -50,7 +53,7 @@ Origin: https://ice11123.github.io
 X-CSRF-Token: <来自 /auth/me 的 csrfToken>
 ```
 
-请求体为 `{ "post": ... }`，成功响应包含 `commitSha`、`commitUrl` 和规范化后的 `path`。
+发布接口 `/api/sync` 的请求体为 `{ "post": ... }`；删除接口 `/api/delete` 的请求体为 `{ "publishedPath": ..., "title": ... }`。成功响应包含 `commitSha`、`commitUrl` 和规范化后的 `path`。
 
 ## 验证
 

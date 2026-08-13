@@ -43,6 +43,9 @@ jobs:
       - name: Check project
         run: pnpm run check
 
+      - name: Test Worker
+        run: pnpm --dir worker test
+
       - name: Build site
         run: pnpm run build
 

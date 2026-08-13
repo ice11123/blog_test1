@@ -1,6 +1,6 @@
 # Cloudflare Worker 管理 API
 
-Worker 负责 GitHub OAuth 和管理台文章发布。GitHub OAuth token 只保存在 Worker KV，会话通过 HttpOnly Cookie 传递给本站管理台。
+Worker 负责 GitHub OAuth 和管理台文章发布。GitHub OAuth token 加密后保存在 Worker KV，会话通过 HttpOnly Cookie 传递给本站管理台。
 
 ## OAuth 配置
 
@@ -29,7 +29,10 @@ npx wrangler deploy
 - 仅允许 GitHub 用户 `ice11123`。
 - 仅写入 `ice11123/blog_test1/main`。
 - `/api/sync` 需要 HttpOnly Cookie 和 `X-CSRF-Token`。
+- `/api/delete` 使用同一套会话与 CSRF 校验删除正式文章。
 - OAuth 回调固定到 `/blog_test1/admin/`，不接受任意 `returnTo`，不会把 session token 放进 URL。
+- 文章新建、更新、移动和删除通过 Git Data API 单次提交；目标路径冲突返回 409，不覆盖其他文章。
+- GitHub API 请求设置 15 秒超时；OAuth token 使用 `SESSION_SECRET` 派生密钥进行 AES-GCM 加密。
 
 ## Pages 配置
 

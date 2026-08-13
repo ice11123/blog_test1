@@ -40,9 +40,9 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
       <section class="admin-hero">
         <p class="admin-kicker">ADMIN PROTOTYPE</p>
         <h1>博客管理台</h1>
-        <p>这里可以编辑文章、标签和目录，并在当前浏览器保存本地草稿。</p>
+        <p>这里可以编辑文章、标签和目录，保存本地草稿，并通过 GitHub 授权发布到正式网站。</p>
         <div class="admin-warning" role="note">
-          前端原型提示：当前没有真正的登录、服务端鉴权或 GitHub 写入权限。草稿只保存在此浏览器，任何访问者都可以绕过前端门槛。
+          安全提示：隐藏入口和站内密码只是界面门槛，真正的发布权限由云端 GitHub OAuth、HttpOnly 会话、Origin 与 CSRF 校验共同控制。本地草稿仍只保存在当前浏览器。
         </div>
       </section>
 
@@ -159,6 +159,7 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
 
   const ADMIN_UNLOCK_STORAGE_KEY = 'blog-test1-admin-unlocked';
   const PENDING_CLOUD_PUBLISH_KEY = 'blog-test1-pending-cloud-publish-v1';
+  const PENDING_CLOUD_DELETE_KEY = 'blog-test1-pending-cloud-delete-v1';
   const LEGACY_ADMIN_SESSION_KEY = 'blog-test1-cloud-session-v1';
 
   const STORAGE_KEY = 'blog-test1-admin-drafts-v1';
@@ -178,7 +179,21 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       const parsed = raw ? JSON.parse(raw) : null;
-      return Array.isArray(parsed) ? parsed.map(clonePost) : initialDrafts.map(clonePost);
+      if (!Array.isArray(parsed)) return initialDrafts.map(clonePost);
+      const initial = initialDrafts.map(clonePost);
+      const initialIds = new Set(initial.map(post => post.id));
+      const initialPaths = new Set(initial.map(post => post.publishedPath).filter(Boolean));
+      const merged = initial.map(post => {
+        const local = parsed.find(item => item.id === post.id || (item.publishedPath && item.publishedPath === post.publishedPath));
+        return local ? clonePost({ ...post, ...local, orphaned: false, repositoryPending: false }) : post;
+      });
+      for (const item of parsed) {
+        const post = clonePost(item);
+        if (initialIds.has(post.id) || (post.publishedPath && initialPaths.has(post.publishedPath))) continue;
+        if (post.deleted) continue;
+        merged.push({ ...post, orphaned: Boolean(post.publishedPath) && !post.repositoryPending });
+      }
+      return merged;
     } catch { return initialDrafts.map(clonePost); }
   };
   const writeDrafts = (posts) => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(posts)); } catch {} };
@@ -211,6 +226,20 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
       source = source.replace(/(?<!\$)\$([^$\n]+)\$(?!\$)/g, (_, math) => `[行内公式：${math.trim()}]`);
       const renderer = new marked.Renderer();
       renderer.html = ({ text }) => escapeHtml(text);
+      const safeUrl = (value) => /^(?:https?:|mailto:|\/|#)/i.test(String(value || '')) ? String(value) : '';
+      renderer.link = ({ href, title, text }) => {
+        const url = safeUrl(href);
+        const label = escapeHtml(text || href || '链接');
+        if (!url) return label;
+        const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
+        return `<a href="${escapeHtml(url)}"${titleAttr} rel="noopener noreferrer">${label}</a>`;
+      };
+      renderer.image = ({ href, title, text }) => {
+        const url = safeUrl(href);
+        if (!url) return escapeHtml(text || '图片');
+        const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
+        return `<img src="${escapeHtml(url)}" alt="${escapeHtml(text || '')}"${titleAttr} loading="lazy" />`;
+      };
       return marked.parse(source, { breaks: true, gfm: true, async: false, renderer });
     };
     const setStatus = (text) => { if (status) status.textContent = text; };
@@ -220,6 +249,7 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
     const publishPost = async (post, button) => {
       const api = endpoint();
       if (!api) { setStatus('尚未配置云端 API'); return false; }
+      if (post.orphaned) { setStatus('该草稿对应的仓库文章已不存在，请新建文章后再发布'); return false; }
       button && (button.disabled = true);
       setStatus('正在发布…');
       try {
@@ -228,7 +258,7 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
         if (!response.ok) throw new Error(result?.message || `HTTP ${response.status}`);
         localStorage.removeItem(PENDING_CLOUD_PUBLISH_KEY);
         if (result.path) {
-          const updated = { ...post, publishedPath: result.path, localEditedAt: new Date().toISOString() };
+          const updated = { ...post, publishedPath: result.path, repositoryPending: true, orphaned: false, localEditedAt: new Date().toISOString() };
           saveDraft(updated);
           drafts = readDrafts();
           selectedId = updated.id;
@@ -257,7 +287,7 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
     const renderList = () => {
       if (!list) return;
       const query = (field('search')?.value || app.querySelector('[data-search]')?.value || '').toLowerCase();
-      list.innerHTML = drafts.filter(post => !post.deleted && `${post.title} ${post.tags.join(' ')} ${post.dir1} ${post.dir2}`.toLowerCase().includes(query)).map(post => `<button type="button" class="admin-post-item ${post.id === selectedId ? 'active' : ''}" data-id="${escapeHtml(post.id)}"><span>${escapeHtml(post.title || '未命名文章')}</span><small>${escapeHtml(post.dir1 || '未分类')} · ${escapeHtml(post.tags.join(', ') || '无标签')}</small></button>`).join('') || '<p class="admin-muted">暂无文章</p>';
+      list.innerHTML = drafts.filter(post => !post.deleted && `${post.title} ${post.tags.join(' ')} ${post.dir1} ${post.dir2}`.toLowerCase().includes(query)).map(post => `<button type="button" class="admin-post-item ${post.id === selectedId ? 'active' : ''}" data-id="${escapeHtml(post.id)}"><span>${escapeHtml(post.title || '未命名文章')}</span><small>${post.orphaned ? '待重新绑定 · ' : ''}${escapeHtml(post.dir1 || '未分类')} · ${escapeHtml(post.tags.join(', ') || '无标签')}</small></button>`).join('') || '<p class="admin-muted">暂无文章</p>';
       list.querySelectorAll('[data-id]').forEach(button => button.addEventListener('click', () => { selectedId = button.getAttribute('data-id') || ''; loadForm(); renderList(); }));
       if (count) count.textContent = `共 ${drafts.filter(post => !post.deleted).length} 篇`;
     };
@@ -267,7 +297,37 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
     form?.addEventListener('input', queuePreviewUpdate);
     app.querySelector('[data-search]')?.addEventListener('input', renderList);
     app.querySelector('[data-new]')?.addEventListener('click', () => { const post = { id: slugifyAdminId('未命名文章'), title: '未命名文章', description: '', pubDate: new Date().toISOString().slice(0, 10), dir1: '', dir2: '', tags: [], body: '# 新文章\n\n在这里开始写作。', format: 'mdx' }; saveDraft(post); drafts = readDrafts(); selectedId = post.id; renderList(); loadForm(); });
-    app.querySelector('[data-delete]')?.addEventListener('click', () => { if (!selectedId || !confirm('确定删除当前本地草稿吗？')) return; removeDraft(selectedId); drafts = readDrafts(); selectedId = drafts[0]?.id || ''; renderList(); loadForm(); setStatus('已删除本地草稿'); });
+    const removeLocalPost = (id, keepTombstone = false) => {
+      if (keepTombstone) writeDrafts(readDrafts().map(post => post.id === id ? { ...post, deleted: true } : post));
+      else removeDraft(id);
+      drafts = readDrafts(); selectedId = drafts.find(post => !post.deleted)?.id || ''; renderList(); loadForm();
+    };
+    const deleteRemotePost = async (post, button) => {
+      const api = endpoint();
+      if (!api || !post.publishedPath) { removeLocalPost(post.id); setStatus('已删除本地草稿'); return true; }
+      button && (button.disabled = true);
+      try {
+        const me = await fetch(`${api}/auth/me`, { credentials: 'include' });
+        if (!me.ok) {
+          localStorage.setItem(PENDING_CLOUD_DELETE_KEY, JSON.stringify(post));
+          window.location.href = `${api}/auth/github`;
+          return false;
+        }
+        const auth = await me.json().catch(() => ({}));
+        csrfToken = auth?.csrfToken || '';
+        if (!csrfToken) throw new Error('未获取到 CSRF token');
+        const response = await fetch(`${api}/api/delete`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, credentials: 'include', body: JSON.stringify({ publishedPath: post.publishedPath, title: post.title }) });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result?.message || `HTTP ${response.status}`);
+        localStorage.removeItem(PENDING_CLOUD_DELETE_KEY);
+        removeLocalPost(post.id, true);
+        setStatus(result.commitUrl ? `正式文章已删除：${result.commitUrl}` : '正式文章已删除，等待 Actions 部署');
+        return true;
+      } catch (error) { setStatus(`删除失败：${error instanceof Error ? error.message : '云端请求失败'}`); return false; }
+      finally { button && (button.disabled = false); }
+    };
+    const deleteButton = app.querySelector('[data-delete]');
+    deleteButton?.addEventListener('click', () => { const post = current(); if (!post || !confirm(post.publishedPath ? '确定删除本地草稿并从正式网站删除这篇文章吗？' : '确定删除当前本地草稿吗？')) return; void deleteRemotePost(post, deleteButton); });
     app.querySelector('[data-reset]')?.addEventListener('click', () => { if (!confirm('将清除本浏览器中的全部草稿并恢复仓库初始内容，继续吗？')) return; resetDrafts(); drafts = readDrafts(); selectedId = drafts[0]?.id || ''; renderList(); loadForm(); setStatus('已恢复初始内容'); });
     app.querySelector('[data-export]')?.addEventListener('click', () => { const post = current(); if (!post) return; const blob = new Blob([draftToMarkdown(collect())], { type: 'text/markdown;charset=utf-8' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `${post.title || 'untitled'}.${post.format}`; link.click(); URL.revokeObjectURL(url); setStatus('已导出文件'); });
     const cloudPublishButton = app.querySelector('[data-cloud-publish]');
@@ -308,8 +368,9 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
         csrfToken = auth?.csrfToken || '';
         if (!csrfToken) return;
         const pendingRaw = localStorage.getItem(PENDING_CLOUD_PUBLISH_KEY);
-        if (!pendingRaw) return;
-        await publishPost(JSON.parse(pendingRaw), cloudPublishButton);
+        if (pendingRaw) await publishPost(JSON.parse(pendingRaw), cloudPublishButton);
+        const pendingDeleteRaw = localStorage.getItem(PENDING_CLOUD_DELETE_KEY);
+        if (pendingDeleteRaw) await deleteRemotePost(JSON.parse(pendingDeleteRaw), deleteButton);
       } catch (error) {
         setStatus(`恢复待发布文章失败：${error instanceof Error ? error.message : '云端请求失败'}`);
       }
