@@ -163,10 +163,14 @@ const systemCards = [
   </body>
 </html>
 
-<style>
+<style is:global>
+  .admin-page,
+  .admin-page *,
+  .admin-page *::before,
+  .admin-page *::after { box-sizing: border-box; }
   .admin-page { overflow-x: hidden; background: var(--background); }
   .admin-shell { width: min(1880px, calc(100% - 3.5rem)); margin: 0 auto 3rem; }
-  .admin-overview { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(420px, .85fr); gap: 1rem; align-items: start; margin: 1rem 0 1.25rem; }
+  .admin-overview { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(420px, .85fr); gap: 1rem; align-items: stretch; margin: 1rem 0 1.25rem; }
   .admin-intro, .system-status, .admin-locked, .admin-toolbar, .admin-tree-panel, .admin-form, .admin-preview, .current-article-identity { border: 1px solid var(--border); background: color-mix(in srgb, var(--background-dark) 88%, transparent); }
   .admin-intro, .system-status { padding: 1.15rem 1.25rem; border-radius: var(--radius-xl); }
   .admin-kicker, .status-eyebrow { margin: 0; color: var(--accent); font-size: .7rem; font-weight: 650; letter-spacing: .15em; }
@@ -178,8 +182,8 @@ const systemCards = [
   .system-status-heading h2 { margin: .15rem 0 0; font-size: 1.2rem; }
   .status-refresh { display: inline-flex; align-items: center; gap: .35rem; min-height: 2rem; padding: .4rem .65rem; color: var(--foreground); background: transparent; border: 1px solid var(--border); border-radius: var(--radius-lg); cursor: pointer; }
   .status-refresh:hover { color: var(--accent); border-color: var(--accent); }
-  .system-status-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; }
-  .system-card { --state-color: var(--alert-warning); --state-bg: var(--alert-warning-bg); min-width: 0; padding: .65rem .72rem; border: 1px solid var(--state-color); border-radius: var(--radius-lg); background: var(--state-bg); transition: border-color var(--transition-base), background var(--transition-base); }
+  .system-status-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; min-width: 0; }
+  .system-card { --state-color: var(--alert-warning); --state-bg: var(--alert-warning-bg); min-width: 0; width: 100%; padding: .65rem .72rem; border: 1px solid var(--state-color); border-radius: var(--radius-lg); background: var(--state-bg); transition: border-color var(--transition-base), background var(--transition-base); }
   .system-card[data-state="ok"] { --state-color: var(--alert-tip); --state-bg: var(--alert-tip-bg); }
   .system-card[data-state="error"] { --state-color: var(--alert-caution); --state-bg: var(--alert-caution-bg); }
   .system-card header { display: flex; align-items: center; gap: .4rem; min-width: 0; }
@@ -222,8 +226,10 @@ const systemCards = [
   .admin-mode-toggle button { flex: 1; padding: .42rem .2rem; color: var(--foreground-dark); background: transparent; border: 0; font: inherit; font-size: .78rem; cursor: pointer; }
   .admin-mode-toggle button.active { color: var(--accent); }
   .admin-tree-scroll { min-height: 0; margin-top: .4rem; overflow-y: auto; scrollbar-width: thin; }
-  .admin-tree, .admin-tree ul { margin: 0; padding: 0; list-style: none; }
-  .admin-node-header { display: flex; align-items: center; gap: .3rem; width: 100%; padding: .32rem .35rem; color: var(--foreground); background: transparent; border: 0; border-radius: 0 var(--radius-md) var(--radius-md) 0; font: inherit; cursor: pointer; }
+  .admin-tree, .admin-tree ul, .admin-tree li { margin: 0; padding: 0; list-style: none; }
+  .admin-node-header,
+  .admin-article-button { appearance: none; -webkit-appearance: none; display: flex; align-items: center; gap: .3rem; width: 100%; min-width: 0; margin: 0; color: var(--foreground); background: transparent; border: 0; border-radius: 0 var(--radius-md) var(--radius-md) 0; font: inherit; line-height: 1.35; text-align: left; cursor: pointer; }
+  .admin-node-header { padding: .32rem .35rem; }
   .admin-node-header:hover { background: rgba(var(--accent-rgb), var(--alpha-hover)); }
   .admin-node-arrow { width: 0; height: 0; flex: 0 0 auto; border-top: 4px solid transparent; border-bottom: 4px solid transparent; border-left: 5px solid var(--foreground-dark); transition: transform var(--transition-base); }
   .admin-node-header.expanded .admin-node-arrow { transform: rotate(90deg); }
@@ -233,11 +239,11 @@ const systemCards = [
   .admin-node-children { position: relative; max-height: 4000px; padding-left: 1rem !important; overflow: hidden; transition: max-height var(--transition-slow); }
   .admin-node-children.collapsed { max-height: 0; }
   .admin-node-children.active-path::before { content: ''; position: absolute; left: .42rem; top: 0; width: 1px; height: 100%; background: var(--accent); opacity: .85; }
-  .admin-article-button { display: flex; align-items: center; gap: .35rem; width: 100%; padding: .3rem .38rem; color: var(--foreground-dark); background: transparent; border: 0; border-radius: 0 var(--radius-md) var(--radius-md) 0; text-align: left; cursor: pointer; }
+  .admin-article-button { padding: .3rem .38rem; color: var(--foreground-dark); gap: .35rem; }
   .admin-article-button:hover { color: var(--foreground); background: rgba(var(--accent-rgb), var(--alpha-hover)); }
   .admin-article-button.current { color: var(--accent-light); background: rgba(var(--accent-rgb), var(--alpha-active)); font-weight: 500; }
-  .admin-article-title { min-width: 0; overflow: hidden; font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
-  .admin-article-badges { display: flex; gap: .2rem; margin-left: auto; }
+  .admin-article-title { flex: 1 1 auto; min-width: 0; overflow: hidden; font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
+  .admin-article-badges { display: flex; flex: 0 0 auto; gap: .2rem; margin-left: auto; }
   .admin-tree-badge { padding: 1px 4px; color: var(--alert-warning); border: 1px solid var(--alert-warning-border); border-radius: var(--radius-full); background: var(--alert-warning-bg); font-size: .55rem; white-space: nowrap; }
   .admin-tree-badge.active { color: var(--alert-tip); border-color: var(--alert-tip-border); background: var(--alert-tip-bg); }
   .admin-tree-badge.danger { color: var(--alert-caution); border-color: var(--alert-caution-border); background: var(--alert-caution-bg); }
@@ -287,7 +293,7 @@ const systemCards = [
     .tree-panel-heading [data-tree-close] { display: block; }
     .admin-tree-backdrop { display: block; position: fixed; z-index: 1290; inset: 0; background: rgba(var(--backdrop-rgb), var(--alpha-overlay-backdrop)); opacity: 0; visibility: hidden; transition: opacity var(--transition-base), visibility 0s var(--transition-base); }
     .admin-tree-backdrop.open { opacity: 1; visibility: visible; transition: opacity var(--transition-base), visibility 0s; }
-    :global(body.admin-drawer-open) { overflow: hidden; }
+    body.admin-drawer-open { overflow: hidden; }
     .admin-preview { margin-top: .8rem; }
     .form-grid { grid-template-columns: 1fr; }
     .form-grid .wide { grid-column: auto; }

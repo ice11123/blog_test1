@@ -341,12 +341,14 @@ function articleButton(post) {
   return `<li class="admin-article-item"><button type="button" class="admin-article-button ${post.id === selectedId ? 'current' : ''}" data-post-id="${escapeHtml(post.id)}"><span class="admin-article-title">${escapeHtml(post.title || '未命名文章')}</span><span class="admin-article-badges">${badges.join('')}</span></button></li>`;
 }
 
-function node(key, label, posts, children = '') {
+function node(key, label, posts, children = null) {
   const matches = posts.some((post) => articleMatches(post, treeState.query));
   if (!matches) return '';
   const forced = Boolean(treeState.query) || posts.some((post) => post.id === selectedId);
   const expanded = forced || treeState.expanded.includes(key);
-  const content = children || sortedPosts(posts).filter((post) => articleMatches(post, treeState.query)).map(articleButton).join('');
+  const content = children === null
+    ? sortedPosts(posts).filter((post) => articleMatches(post, treeState.query)).map(articleButton).join('')
+    : children;
   return `<li class="admin-tree-node ${posts.some((post) => post.id === selectedId) ? 'has-current' : ''}"><button type="button" class="admin-node-header ${expanded ? 'expanded' : ''}" data-node-key="${escapeHtml(key)}" aria-expanded="${expanded}"><span class="admin-node-arrow"></span><span class="admin-node-label">${escapeHtml(label)}</span><span class="admin-node-count">${posts.length}</span></button><ul class="admin-node-children ${expanded ? '' : 'collapsed'} ${posts.some((post) => post.id === selectedId) ? 'active-path' : ''}">${content}</ul></li>`;
 }
 
