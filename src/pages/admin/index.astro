@@ -10,6 +10,8 @@ import { resolveDirs } from '../../lib/utils';
 const posts = await getCollection('blog');
 const initialDrafts: AdminPostDraft[] = posts.map((post) => {
   const dirs = resolveDirs(post);
+  const format = post.id.endsWith('.md') ? 'md' : 'mdx';
+  const publishedId = /\.(?:md|mdx)$/i.test(post.id) ? post.id : `${post.id}.${format}`;
   return {
     id: post.id,
     title: post.data.title,
@@ -20,8 +22,8 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
     dir2: dirs.dir2,
     tags: post.data.tags ?? [],
     body: post.body ?? '',
-    format: post.id.endsWith('.md') ? 'md' : 'mdx',
-    publishedPath: `src/content/blog/${post.id}`,
+    format,
+    publishedPath: `src/content/blog/${publishedId}`,
     localEditedAt: undefined,
   };
 });
@@ -157,10 +159,19 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
 
   const ADMIN_UNLOCK_STORAGE_KEY = 'blog-test1-admin-unlocked';
   const PENDING_CLOUD_PUBLISH_KEY = 'blog-test1-pending-cloud-publish-v1';
-  const ADMIN_SESSION_KEY = 'blog-test1-cloud-session-v1';
+  const LEGACY_ADMIN_SESSION_KEY = 'blog-test1-cloud-session-v1';
 
   const STORAGE_KEY = 'blog-test1-admin-drafts-v1';
-  const clonePost = (post) => ({ ...post, tags: [...post.tags] });
+  const normalizePublishedPath = (post) => {
+    if (typeof post.publishedPath !== 'string' || !post.publishedPath) return { ...post };
+    const path = post.publishedPath.replaceAll('\\', '/');
+    const parts = path.split('/');
+    if (!path.startsWith('src/content/blog/') || parts.some((part) => !part || part === '.' || part === '..')) return { ...post, publishedPath: undefined };
+    if (/\.(?:md|mdx)$/i.test(path)) return { ...post, publishedPath: path };
+    if (!/^[^/]+(?:\/[^/]+)*$/.test(path.slice('src/content/blog/'.length))) return { ...post, publishedPath: undefined };
+    return { ...post, publishedPath: `${path}.${post.format === 'md' ? 'md' : 'mdx'}` };
+  };
+  const clonePost = (post) => ({ ...normalizePublishedPath(post), tags: [...(post.tags || [])] });
   const app = document.querySelector('#admin-app');
   const initialDrafts = app ? JSON.parse(app.getAttribute('data-initial-drafts') || '[]') : [];
   const readDrafts = () => {
@@ -204,8 +215,8 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
     };
     const setStatus = (text) => { if (status) status.textContent = text; };
     const endpoint = () => (app.getAttribute('data-sync-endpoint') || '').replace(/\/$/, '');
-    const sessionToken = () => localStorage.getItem(ADMIN_SESSION_KEY) || '';
-    const authHeaders = () => sessionToken() ? { Authorization: `Bearer ${sessionToken()}` } : {};
+    let csrfToken = '';
+    const authHeaders = () => csrfToken ? { 'X-CSRF-Token': csrfToken } : {};
     const publishPost = async (post, button) => {
       const api = endpoint();
       if (!api) { setStatus('尚未配置云端 API'); return false; }
@@ -267,12 +278,15 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
       if (!post.title.trim() || !post.pubDate) { setStatus('请先填写标题和发布日期'); return; }
       if (!confirm('确认通过云端提交当前文章并触发正式网站部署吗？')) return;
       try {
-        const me = await fetch(`${api}/auth/me`, { headers: authHeaders(), credentials: 'include' });
+        const me = await fetch(`${api}/auth/me`, { credentials: 'include' });
         if (!me.ok) {
           localStorage.setItem(PENDING_CLOUD_PUBLISH_KEY, JSON.stringify(post));
-          window.location.href = `${api}/auth/github?returnTo=${encodeURIComponent(location.href)}`;
+          window.location.href = `${api}/auth/github`;
           return;
         }
+        const auth = await me.json().catch(() => ({}));
+        csrfToken = auth?.csrfToken || '';
+        if (!csrfToken) throw new Error('未获取到 CSRF token');
         await publishPost(post, cloudPublishButton);
       } catch (error) { setStatus(`登录检查失败：${error instanceof Error ? error.message : '云端请求失败'}`); }
     });
@@ -284,27 +298,22 @@ const initialDrafts: AdminPostDraft[] = posts.map((post) => {
     }
     renderList();
     loadForm();
-    const pendingRaw = localStorage.getItem(PENDING_CLOUD_PUBLISH_KEY);
-    if (pendingRaw && endpoint() && sessionStorage.getItem(ADMIN_UNLOCK_STORAGE_KEY) === 'true') {
+    const initializeCloudSession = async () => {
+      localStorage.removeItem(LEGACY_ADMIN_SESSION_KEY);
+      if (!endpoint() || sessionStorage.getItem(ADMIN_UNLOCK_STORAGE_KEY) !== 'true') return;
       try {
-        const pendingPost = JSON.parse(pendingRaw);
-        void fetch(`${endpoint()}/auth/me`, { headers: authHeaders(), credentials: 'include' }).then((response) => {
-          if (response.ok) return publishPost(pendingPost, cloudPublishButton);
-          localStorage.removeItem(PENDING_CLOUD_PUBLISH_KEY);
-          setStatus('GitHub 授权未完成，请重新点击发布');
-          return false;
-        });
-      } catch { localStorage.removeItem(PENDING_CLOUD_PUBLISH_KEY); }
-    }
-    const returnedToken = new URLSearchParams(location.search).get('admin_token');
-    if (returnedToken) {
-      localStorage.setItem(ADMIN_SESSION_KEY, returnedToken);
-      history.replaceState({}, '', `${location.pathname}${location.hash}`);
-      setStatus('GitHub 授权成功，正在恢复发布…');
-      const pending = localStorage.getItem(PENDING_CLOUD_PUBLISH_KEY);
-      if (pending && endpoint()) {
-        try { void publishPost(JSON.parse(pending), cloudPublishButton); } catch { localStorage.removeItem(PENDING_CLOUD_PUBLISH_KEY); }
+        const me = await fetch(`${endpoint()}/auth/me`, { credentials: 'include' });
+        if (!me.ok) return;
+        const auth = await me.json().catch(() => ({}));
+        csrfToken = auth?.csrfToken || '';
+        if (!csrfToken) return;
+        const pendingRaw = localStorage.getItem(PENDING_CLOUD_PUBLISH_KEY);
+        if (!pendingRaw) return;
+        await publishPost(JSON.parse(pendingRaw), cloudPublishButton);
+      } catch (error) {
+        setStatus(`恢复待发布文章失败：${error instanceof Error ? error.message : '云端请求失败'}`);
       }
-    }
+    };
+    void initializeCloudSession();
   }
 </script>

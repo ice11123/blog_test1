@@ -3,6 +3,7 @@
   "type": "module",
   "scripts": {
     "deploy": "wrangler deploy",
+    "test": "node --test test/index.test.js",
     "dev": "wrangler dev"
   },
   "devDependencies": {

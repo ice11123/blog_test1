@@ -1,14 +1,13 @@
-# Cloudflare Workers 管理 API
+# Cloudflare Worker 管理 API
 
-此 Worker 负责 GitHub 登录和文章发布。它是必要的安全边界：GitHub OAuth Token 只保存在 Worker KV 会话中，不进入 Astro 前端。
+Worker 负责 GitHub OAuth 和管理台文章发布。GitHub OAuth token 只保存在 Worker KV，会话通过 HttpOnly Cookie 传递给本站管理台。
 
-## 部署前准备
+## OAuth 配置
 
-1. 在 GitHub Developer Settings → OAuth Apps 创建 OAuth App。
-2. Homepage URL 填写 `https://ice11123.github.io/blog_test1/`。
-3. Authorization callback URL 填写 `https://YOUR_WORKER_DOMAIN/auth/callback`。
-4. 在 Cloudflare 创建 KV Namespace，并将 ID 填入 `wrangler.toml`。
-5. 修改 `wrangler.toml` 中的 `YOUR_KV_NAMESPACE_ID_HERE` 和 Worker 名称。
+GitHub Developer Settings → OAuth Apps：
+
+1. Homepage URL：`https://ice11123.github.io/blog_test1/`
+2. Authorization callback URL：`https://YOUR_WORKER_DOMAIN/auth/callback`
 
 ## 部署
 
@@ -22,28 +21,20 @@ npx wrangler secret put SESSION_SECRET
 npx wrangler deploy
 ```
 
-`SESSION_SECRET` 应使用随机长字符串。不要把 OAuth Secret、Session Secret 或 GitHub Token 写入仓库。
+不要把 OAuth Secret、Session Secret、GitHub Token 写入仓库。
 
-## 部署后的 GitHub Pages 配置
+## 运行约束
 
-在 `ice11123/blog_test1` → Settings → Secrets and variables → Actions → Variables 中新增：
+- 仅允许 Origin `https://ice11123.github.io`。
+- 仅允许 GitHub 用户 `ice11123`。
+- 仅写入 `ice11123/blog_test1/main`。
+- `/api/sync` 需要 HttpOnly Cookie 和 `X-CSRF-Token`。
+- OAuth 回调固定到 `/blog_test1/admin/`，不接受任意 `returnTo`，不会把 session token 放进 URL。
 
-```text
-PUBLIC_ADMIN_SYNC_API_URL=https://YOUR_WORKER_DOMAIN
-```
+## Pages 配置
 
-新增变量后重新运行一次 `Deploy Astro to GitHub Pages` 工作流，前端“发布到正式网站”按钮才会启用。
-
-## 连接 Astro 前端
-
-将 Worker 部署地址设置为 GitHub Pages 构建变量：
+在仓库 Actions Variables 中配置：
 
 ```text
 PUBLIC_ADMIN_SYNC_API_URL=https://YOUR_WORKER_DOMAIN
 ```
-
-由于该变量以 `PUBLIC_` 开头，它只能是公开的 Worker 地址，不能填写任何 Secret。
-
-## 权限说明
-
-Worker 只接受 GitHub 用户名 `ice11123`，只写入 `ice11123/blog_test1` 的 `main` 分支。当前 OAuth 使用 `public_repo`，仅适用于公开仓库；正式使用时仍建议改为 GitHub App，只给目标仓库 Contents 写权限。

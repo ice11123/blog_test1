@@ -1,68 +1,67 @@
-# 管理台同步到 GitHub 的接口约定
+# 管理台同步到 GitHub
 
-管理台目前默认只把草稿保存到浏览器 `localStorage`。配置 `PUBLIC_ADMIN_SYNC_API_URL` 后，“发布到正式网站”按钮会通过 Cloudflare Worker 完成 GitHub 登录和仓库提交。
+管理台通过 Cloudflare Worker 完成 GitHub OAuth 和文章提交：
 
-Worker 部署说明见 [`worker/README.md`](../worker/README.md)。
+```text
+管理台 → GitHub OAuth → Worker HttpOnly Cookie 会话 → GitHub Contents API → main → Pages Actions
+```
 
-## 为什么需要独立后端
+## 安全边界
 
-Astro 输出的是公开静态文件，浏览器代码中的任何 GitHub Token 都能被访问者读取。因此不能让管理台直接调用 GitHub API。推荐使用 Cloudflare Workers（或同等服务）作为后端，并把 GitHub App 私钥放入服务端 Secret。
+- OAuth 回调固定回到 `https://ice11123.github.io/blog_test1/admin/`，不接受外部 `returnTo`。
+- GitHub session 只保存在 Worker KV，并通过 `blog_session` HttpOnly Cookie 使用。
+- 前端不再保存 bearer session，也不会处理 `admin_token` URL 参数。
+- `/auth/me` 返回短期 CSRF token；前端只在当前页面内存保存该 token。
+- `/api/sync` 必须带本站 Origin、有效 HttpOnly Cookie 和 `X-CSRF-Token`。
+- Worker 只允许 GitHub 用户 `ice11123`，目标仓库为 `ice11123/blog_test1` 的 `main` 分支。
 
-后端至少应完成以下校验：
+## 部署配置
 
-- 通过 GitHub OAuth 或自己的登录机制确认用户身份；
-- 只允许 GitHub 用户 `ice11123`；
-- 只允许仓库 `ice11123/blog_test1` 和分支 `main`；
-- 校验文章字段长度、日期和文件路径，拒绝目录穿越；
-- 使用 GitHub App 的最小 `Contents: Read and write` 权限提交文件；
-- 不把 Token、私钥或明文密码返回给前端。
+在 `worker/` 目录执行：
 
-## 请求
+```powershell
+npx wrangler login
+npx wrangler secret put GITHUB_OAUTH_CLIENT_ID
+npx wrangler secret put GITHUB_OAUTH_CLIENT_SECRET
+npx wrangler secret put SESSION_SECRET
+npx wrangler deploy
+```
+
+GitHub OAuth App 的 callback URL 必须是：
+
+```text
+https://YOUR_WORKER_DOMAIN/auth/callback
+```
+
+在仓库 Settings → Secrets and variables → Actions → Variables 中配置：
+
+```text
+PUBLIC_ADMIN_SYNC_API_URL=https://YOUR_WORKER_DOMAIN
+```
+
+修复会使旧的 `blog-test1-cloud-session-v1` 浏览器 token 失效，首次发布需要重新授权。
+
+## 请求接口
+
+前端请求必须使用 `credentials: "include"`。发布请求还必须带：
 
 ```http
-POST YOUR_ADMIN_SYNC_API_URL
-Content-Type: application/json
+Origin: https://ice11123.github.io
+X-CSRF-Token: <来自 /auth/me 的 csrfToken>
 ```
 
-```json
-{
-  "repository": "ice11123/blog_test1",
-  "branch": "main",
-  "post": {
-    "id": "开始/欢迎使用.mdx",
-    "title": "欢迎使用",
-    "description": "文章描述",
-    "pubDate": "2026-08-12",
-    "updatedDate": "2026-08-12",
-    "dir1": "开始",
-    "dir2": "",
-    "tags": ["演示"],
-    "body": "# 正文",
-    "format": "mdx"
-  }
-}
+请求体为 `{ "post": ... }`，成功响应包含 `commitSha`、`commitUrl` 和规范化后的 `path`。
+
+## 验证
+
+```powershell
+curl.exe -i -X OPTIONS "https://YOUR_WORKER_DOMAIN/api/sync" `
+  -H "Origin: https://ice11123.github.io" `
+  -H "Access-Control-Request-Method: POST" `
+  -H "Access-Control-Request-Headers: content-type,x-csrf-token"
+
+curl.exe -i "https://YOUR_WORKER_DOMAIN/auth/me" `
+  -H "Origin: https://ice11123.github.io"
 ```
 
-后端应将内容转换为仓库中的 `src/content/blog/<安全路径>.<md|mdx>`，并使用 `draftToMarkdown` 同等规则生成 frontmatter。删除文章应单独设计受保护的 DELETE 接口，不能通过普通文章提交请求实现。
-
-## 成功响应
-
-```json
-{
-  "ok": true,
-  "commitSha": "YOUR_COMMIT_SHA",
-  "commitUrl": "https://github.com/ice11123/blog_test1/commit/YOUR_COMMIT_SHA"
-}
-```
-
-失败时建议返回 `4xx/5xx` 和不包含敏感信息的 `message` 字段。管理台会显示该消息。
-
-## 前端配置
-
-在构建环境中设置：
-
-```env
-PUBLIC_ADMIN_SYNC_API_URL=YOUR_DEPLOYED_SYNC_API_URL
-```
-
-不要把 GitHub Personal Access Token、GitHub App 私钥或真实服务端密码写入 `.env` 的 `PUBLIC_` 变量，也不要提交到仓库。
+OPTIONS 应返回 204，并包含精确的 `Access-Control-Allow-Origin`、`Access-Control-Allow-Credentials: true` 和 `X-CSRF-Token`。
