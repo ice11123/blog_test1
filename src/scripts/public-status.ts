@@ -1,4 +1,7 @@
 const REQUEST_TIMEOUT_MS = 15_000;
+const GITHUB_API = 'https://api.github.com';
+const REPOSITORY = 'ice11123/blog_test1';
+const BRANCH = 'main';
 
 function initPublicStatus(): void {
   const root = document.querySelector<HTMLElement>('[data-public-status]');
@@ -30,6 +33,44 @@ function initPublicStatus(): void {
     return Number.isNaN(date.valueOf()) ? '暂无更新时间' : date.toLocaleString('zh-CN', { hour12: false });
   };
 
+  const refreshFromGitHub = async () => {
+    try {
+      const [refResponse, runsResponse] = await Promise.all([
+        fetch(`${GITHUB_API}/repos/${REPOSITORY}/git/ref/heads/${BRANCH}`, {
+          headers: { Accept: 'application/vnd.github+json' },
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        }),
+        fetch(`${GITHUB_API}/repos/${REPOSITORY}/actions/workflows/deploy.yml/runs?branch=${BRANCH}&per_page=1`, {
+          headers: { Accept: 'application/vnd.github+json' },
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        }),
+      ]);
+      if (!refResponse.ok) throw new Error('repository status failed');
+      const ref = await refResponse.json();
+      const sha = typeof ref?.object?.sha === 'string' ? ref.object.sha : '';
+      if (!sha) throw new Error('repository SHA missing');
+      setCard('repository', 'waiting', REPOSITORY, `${BRANCH} · ${sha.slice(0, 7)} · GitHub 直连降级`, `https://github.com/${REPOSITORY}/commit/${sha}`);
+
+      if (!runsResponse.ok) {
+        setCard('deployment', 'waiting', 'Worker 不可用，部署状态待刷新', '仓库 HEAD 已通过 GitHub 直连读取');
+        return;
+      }
+      const runs = await runsResponse.json();
+      const run = Array.isArray(runs?.workflow_runs) ? runs.workflow_runs[0] : null;
+      if (!run) {
+        setCard('deployment', 'waiting', '暂无部署记录', 'GitHub 直连降级');
+        return;
+      }
+      const status = run.status !== 'completed' ? 'pending' : run.conclusion === 'success' ? 'success' : 'failure';
+      if (status === 'success') setCard('deployment', 'waiting', '最近部署成功', `${formatTime(run.updated_at)} · GitHub 直连降级`, run.html_url || '');
+      else if (status === 'pending') setCard('deployment', 'waiting', '正在构建或排队', `${formatTime(run.updated_at)} · GitHub 直连降级`, run.html_url || '');
+      else setCard('deployment', 'error', '最近部署失败', formatTime(run.updated_at), run.html_url || '');
+    } catch {
+      setCard('repository', 'error', '仓库状态不可用', 'Worker 与 GitHub 公共 API 均无法连接');
+      setCard('deployment', 'error', '部署状态不可用', 'Worker 与 GitHub 公共 API 均无法连接');
+    }
+  };
+
   const refresh = async () => {
     setCard('frontend', 'ok', '首页脚本已初始化', '公开状态模块工作正常');
     if (!endpoint) {
@@ -58,8 +99,9 @@ function initPublicStatus(): void {
       else setCard('deployment', 'error', '最近部署失败', formatTime(deployment.updatedAt), deployment.url || '');
     } catch {
       setCard('worker', 'error', 'Worker 无法连接', '请稍后重新检测');
-      setCard('repository', 'error', '仓库状态不可用', '无法读取 main 分支');
-      setCard('deployment', 'error', '部署状态不可用', '无法读取 Pages Actions');
+      setCard('repository', 'checking', '正在尝试 GitHub 直连', 'Worker 不可用，启用公共只读降级');
+      setCard('deployment', 'checking', '正在尝试 GitHub 直连', 'Worker 不可用，启用公共只读降级');
+      await refreshFromGitHub();
     }
   };
 
