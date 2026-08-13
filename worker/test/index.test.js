@@ -110,6 +110,7 @@ test('目标路径冲突返回 409 且不会创建 Git blob', async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, options = {}) => {
     calls.push({ url: String(url), options });
+    if (String(url).includes('/git/ref/heads/main')) return Response.json({ object: { sha: 'head-sha' } });
     if (String(url).includes('/contents/src/content/blog/new/post.mdx')) return new Response(JSON.stringify({ sha: 'occupied' }), { status: 200 });
     return new Response('not found', { status: 404 });
   };
@@ -120,6 +121,7 @@ test('目标路径冲突返回 409 且不会创建 Git blob', async () => {
     const response = await worker.fetch(new Request('https://worker.test/api/sync', { method: 'POST', headers: { Origin: env.ALLOWED_ORIGIN, Cookie: 'blog_session=session-id', 'X-CSRF-Token': 'csrf-ok', 'Content-Type': 'application/json' }, body: JSON.stringify({ post }) }), sessionEnv);
     assert.equal(response.status, 409);
     assert.equal(calls.some(call => call.url.includes('/git/blobs')), false);
+    assert.equal(new URL(calls.find(call => call.url.includes('/contents/')).url).searchParams.get('ref'), 'head-sha');
   } finally { globalThis.fetch = originalFetch; }
 });
 

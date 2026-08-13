@@ -110,11 +110,12 @@ async function syncPost(request, env) {
   const previousPath = post.publishedPath ? safePublishedPath(post.publishedPath) : null;
   const content = draftMarkdown(post);
   const token = await decryptSecret(session.tokenCipher, env.SESSION_SECRET);
-  const existing = await getRepositoryFile(filePath, token, env);
+  const headSha = await getBranchHead(token, env);
+  const existing = await getRepositoryFile(filePath, token, env, headSha);
   if (existing && previousPath !== filePath) throw new HttpError(409, '目标路径已存在其他文章，请修改目录或文件名');
   if (previousPath === filePath && !existing) throw new HttpError(409, '原文章已不存在，请刷新管理台后重新绑定');
   if (previousPath && previousPath !== filePath) {
-    const previous = await getRepositoryFile(previousPath, token, env);
+    const previous = await getRepositoryFile(previousPath, token, env, headSha);
     if (!previous) throw new HttpError(409, '原文章已不存在，请刷新管理台后重新绑定');
   }
 
@@ -124,6 +125,7 @@ async function syncPost(request, env) {
     message: `更新文章：${post.title}`,
     additions: [{ path: filePath, content }],
     deletions: previousPath && previousPath !== filePath ? [previousPath] : [],
+    headSha,
   });
 
   return cors(json({ ok: true, commitSha: result.sha, commitUrl: commitUrl(env, result.sha), path: filePath }), env, request);
@@ -135,7 +137,8 @@ async function deletePost(request, env) {
   const publishedPath = safePublishedPath(payload?.publishedPath);
   const title = typeof payload?.title === 'string' && payload.title.trim() ? payload.title.trim().slice(0, 200) : publishedPath.split('/').pop();
   const token = await decryptSecret(session.tokenCipher, env.SESSION_SECRET);
-  const existing = await getRepositoryFile(publishedPath, token, env);
+  const headSha = await getBranchHead(token, env);
+  const existing = await getRepositoryFile(publishedPath, token, env, headSha);
   if (!existing) throw new HttpError(404, '正式文章不存在，可能已经被删除');
 
   const result = await commitArticleChanges({
@@ -144,6 +147,7 @@ async function deletePost(request, env) {
     message: `删除文章：${title}`,
     additions: [],
     deletions: [publishedPath],
+    headSha,
   });
   return cors(json({ ok: true, commitSha: result.sha, commitUrl: commitUrl(env, result.sha), path: publishedPath }), env, request);
 }
@@ -196,15 +200,18 @@ async function requireAdminSession(request, env) {
   return session;
 }
 
-async function getRepositoryFile(path, token, env) {
-  return githubFetch(`/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/contents/${encodePath(path)}`, token, { ref: env.GITHUB_BRANCH });
-}
-
-async function commitArticleChanges({ token, env, message, additions, deletions }) {
-  const refPath = `/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/git/ref/heads/${encodeURIComponent(env.GITHUB_BRANCH)}`;
-  const head = await githubFetch(refPath, token);
+async function getBranchHead(token, env) {
+  const head = await githubFetch(`/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/git/ref/heads/${encodeURIComponent(env.GITHUB_BRANCH)}`, token);
   const headSha = head?.object?.sha;
   if (!headSha) throw new Error('GitHub ref response missing SHA');
+  return headSha;
+}
+
+async function getRepositoryFile(path, token, env, ref) {
+  return githubFetch(`/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/contents/${encodePath(path)}`, token, { ref });
+}
+
+async function commitArticleChanges({ token, env, message, additions, deletions, headSha }) {
   const parent = await githubFetch(`/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/git/commits/${headSha}`, token);
   const baseTree = parent?.tree?.sha;
   if (!baseTree) throw new Error('GitHub commit response missing tree SHA');
