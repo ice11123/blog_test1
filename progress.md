@@ -27,3 +27,6 @@
 - 实际截图确认欢迎统计、月度统计、两组语言图、贡献墙与近期文章均位于统一主题边框中；近期文章不再溢出右侧面板。
 - `pnpm run check` 通过（0 errors / 0 warnings / 0 hints），`pnpm run build` 成功。
 - Beads 任务 `blog_test1-xmf` 已关闭；首次 `bd dolt push` 因当前仓库绝对路径过长，Dolt 的本地 Git 缓存触发 Windows `Filename too long`，进入短路径同步处理。
+- 提交 `8fd6ee3` 完成首页视觉返工，提交 `d2aee0c` 写入 Beads 状态事件，均已推送到 `origin/main`。
+- GitHub Pages 工作流 #39 对 `d2aee0c` 构建成功；线上绕过浏览器旧缓存后复核：左右侧栏各 220px、中心约 741px、正文 18px、侧栏 13.6px，三组卡片上下对齐且无页面横向溢出。
+- 线上截图确认浅色主题下左侧目录、右侧文章目录与简介清晰可见，首页卡片边界、标题层级和原作者三栏视觉骨架一致。
