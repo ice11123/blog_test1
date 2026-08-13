@@ -283,6 +283,15 @@ const systemCards = [
   .preview-body h1, .preview-body h2, .preview-body h3 { margin: 1rem 0 .5rem; }
   .preview-body p { margin: .7rem 0; }
   .preview-body pre { overflow-x: auto; padding: .75rem; background: var(--background); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+  .preview-body .preview-code { color: var(--foreground); font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; font-size: .82rem; line-height: 1.65; tab-size: 2; }
+  .preview-body .preview-code code { padding: 0; color: inherit; background: transparent; font: inherit; }
+  .preview-body .preview-code .token.comment, .preview-body .preview-code .token.prolog, .preview-body .preview-code .token.doctype, .preview-body .preview-code .token.cdata { color: var(--syn-comment); font-style: italic; }
+  .preview-body .preview-code .token.keyword, .preview-body .preview-code .token.atrule { color: var(--syn-keyword); }
+  .preview-body .preview-code .token.string, .preview-body .preview-code .token.char, .preview-body .preview-code .token.attr-value, .preview-body .preview-code .token.template-punctuation { color: var(--syn-string); }
+  .preview-body .preview-code .token.function, .preview-body .preview-code .token.class-name { color: var(--syn-function); }
+  .preview-body .preview-code .token.number, .preview-body .preview-code .token.boolean, .preview-body .preview-code .token.constant { color: var(--syn-number); }
+  .preview-body .preview-code .token.builtin, .preview-body .preview-code .token.operator, .preview-body .preview-code .token.property, .preview-body .preview-code .token.tag { color: var(--syn-type); }
+  .preview-body .preview-code .token.punctuation, .preview-body .preview-code .token.interpolation-punctuation { color: var(--syn-punctuation); }
   .preview-body img { max-width: 100%; height: auto; }
   .preview-body .katex-display { overflow-x: auto; overflow-y: hidden; padding: .35rem 0; }
   .preview-body .katex, .preview-body .katex * { overflow-wrap: normal; word-break: normal; }
@@ -298,6 +307,9 @@ const systemCards = [
   .preview-body .preview-component-card small { color: var(--foreground-dark); }
   .preview-body details.preview-spoiler { margin: 1rem 0; padding: .65rem .8rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--muted) 35%, transparent); }
   .preview-body details.preview-spoiler summary { color: var(--accent); cursor: pointer; }
+  .preview-body .preview-spoiler-content { margin-top: .7rem; padding-top: .65rem; border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent); color: var(--foreground-dark); }
+  .preview-body .preview-spoiler-content > :first-child { margin-top: 0; }
+  .preview-body .preview-spoiler-content > :last-child { margin-bottom: 0; }
   .preview-body .preview-render-error { color: var(--alert-caution); border-color: var(--alert-caution-border); background: var(--alert-caution-bg); }
   .admin-muted { color: var(--foreground-dark); font-size: .72rem; }
   .admin-tree-backdrop { display: none; }

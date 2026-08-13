@@ -59,7 +59,7 @@ function extractComponents(source: string, tokens: Map<string, string>): string 
     const props = parseProps(rawProps);
     const token = `ADMINPREVIEWCOMPONENT${tokens.size}TOKEN`;
     const inner = marked.parse(body.trim(), { gfm: true, breaks: true, async: false }) as string;
-    tokens.set(token, `<details class="preview-spoiler"><summary>${escapeHtml(props.hint || '展开隐藏内容')}</summary><div>${inner}</div></details>`);
+    tokens.set(token, `<details class="preview-spoiler" open><summary>${escapeHtml(props.hint || '展开隐藏内容')}</summary><div class="preview-spoiler-content">${inner}</div></details>`);
     return `\n\n${token}\n\n`;
   });
 
@@ -165,7 +165,7 @@ export function renderPreview(source: string): string {
     html = html.replaceAll(token, replacement);
   }
   let sanitized = DOMPurify.sanitize(html, {
-    ADD_ATTR: ['class', 'data-mermaid-code', 'data-preview-component'],
+    ADD_ATTR: ['class', 'data-mermaid-code', 'data-preview-component', 'open'],
     ADD_TAGS: ['details', 'summary'],
     FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'form'],
     FORBID_ATTR: ['style'],

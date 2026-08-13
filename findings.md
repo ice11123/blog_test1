@@ -23,3 +23,4 @@
 - Beads Dolt 同步两次均被 Windows 长路径拒绝；问题在 `.beads/embeddeddolt/.../git-remote-cache` 的内部缓存路径，不是网页代码或 GitHub Pages 构建问题。
 - GitHub Pages 已成功部署新提交；无查询参数的旧标签页一度命中旧缓存，使用提交版本查询参数重新加载后得到新 DOM，确认 `full-width-layout` 已消失且两侧栏已恢复。
 - 管理台公式错位的确定根因：KaTeX CSS 已加载，但最终 DOM 中所有 KaTeX 内联 `style` 均被 DOMPurify 的 `FORBID_ATTR: ['style']` 删除；积分上下限等节点因此丢失垂直定位。修复不能全局允许文章 style，应在普通内容净化完成后仅回填本地 KaTeX 的可信输出。
+- Spoiler 与代码预览复现结论：Spoiler 正文实际存在但 `<details>` 默认关闭，导致实时预览看起来像内容丢失；Prism 已生成完整 `.token` 节点，但 `syntax-highlight.css` 只定义颜色变量、没有 token 选择器，所有 token 继承正文颜色。
