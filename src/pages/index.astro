@@ -33,13 +33,13 @@ const { repoLanguages, totalRepoLines } = getRepoLanguages();
   title={SITE_TITLE}
   description={SITE_DESCRIPTION}
   pubDate={new Date()}
-  fullWidth
+  sidebarsExpanded
 >
   <JsonLd slot="head" data={websiteLd} />
 
   <div class="home-page">
     <section class="home-pair home-overview-grid">
-      <div class="home-overview-copy">
+      <div class="home-panel home-overview-copy">
         <section class="welcome">
           <h2 class="mk-title" style="display:inline;">你好！</h2>
           <h2 style="display:inline;">我是 {SITE_AUTHOR}</h2>
@@ -55,17 +55,17 @@ const { repoLanguages, totalRepoLines } = getRepoLanguages();
           <div class="stat-card fade-up-on-scroll"><div class="stat-number">{fmtNum(totalRepoLines)}</div><div class="stat-label">代码行数</div></div>
         </section>
       </div>
-      <div class="home-module"><MonthlyChart labels={stats.monthLabels} counts={stats.monthCounts} /></div>
+      <div class="home-panel home-module"><MonthlyChart labels={stats.monthLabels} counts={stats.monthCounts} /></div>
     </section>
 
     <section class="home-pair home-language-grid">
-      <div class="home-module"><GitHubRepoStats languages={repoLanguages} totalLines={totalRepoLines} /></div>
-      <div class="home-module"><GitHubLanguages /></div>
+      <div class="home-panel home-module"><GitHubRepoStats languages={repoLanguages} totalLines={totalRepoLines} /></div>
+      <div class="home-panel home-module"><GitHubLanguages /></div>
     </section>
 
     <section class="home-pair home-community-grid">
-      <div class="home-module"><GitHubContributions /></div>
-      <section class="recent-posts home-module">
+      <div class="home-panel home-module"><GitHubContributions /></div>
+      <section class="recent-posts home-panel home-module">
         <h2 class="mk-title section-title">近期文章</h2>
         <BlogList sort="time" posts={recentPosts} />
       </section>
@@ -75,46 +75,46 @@ const { repoLanguages, totalRepoLines } = getRepoLanguages();
 
 <style>
   .home-page {
-    max-width: 1320px;
+    width: 100%;
+    max-width: 760px;
     margin: 0 auto;
-    padding: 2rem 1rem;
+    padding: 1.25rem 1rem 2rem;
     text-align: center;
+    container-type: inline-size;
   }
-
-  :global(.three-col-layout.full-width-layout > .left-sidebar),
-  :global(.three-col-layout.full-width-layout > .right-sidebar),
-  :global(.three-col-layout.full-width-layout > .sidebar-gutter) { display: none; }
-  :global(.three-col-layout.full-width-layout > .content-main) { width: 100%; flex-basis: 100%; }
 
   .welcome {
-    margin-bottom: 1.25rem;
+    margin-bottom: 1rem;
+    text-align: left;
   }
 
-  .welcome h1 {
-    font-size: 2rem;
-    margin-bottom: 0.5rem;
+  .welcome h2 {
+    font-size: 1.55rem;
+    line-height: 1.35;
     color: var(--foreground-light);
   }
 
   .welcome p {
+    margin: .55rem 0 0;
     color: var(--foreground-dark);
-    font-size: 1.1rem;
+    font-size: .92rem;
+    line-height: 1.65;
   }
 
   /* 站点统计卡片 — 3 列网格 */
   .site-stats {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 1rem;
-    margin: 1.5rem auto 0;
+    gap: .65rem;
+    margin: 1rem auto 0;
     max-width: none;
   }
 
   .stat-card {
     background: rgba(var(--muted-rgb), 0.4);
     border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 1.15rem .75rem;
+    border-radius: var(--radius-xl);
+    padding: .8rem .45rem;
     transition: transform 0.2s ease, border-color 0.2s ease;
   }
 
@@ -124,43 +124,57 @@ const { repoLanguages, totalRepoLines } = getRepoLanguages();
   }
 
   .stat-number {
-    font-size: 2.2rem;
+    font-size: 1.55rem;
     font-weight: 700;
     color: var(--accent-light);
     line-height: 1.2;
   }
 
   .stat-label {
-    font-size: 0.9rem;
+    font-size: 0.76rem;
     color: var(--foreground-dark);
     margin-top: 0.3rem;
   }
 
   .section-title {
-    font-size: 1.4rem;
-    margin: 0 0 1rem;
+    font-size: 1.18rem;
+    margin: 0 0 .75rem;
     color: var(--foreground-light);
     text-align: center;
   }
 
-  .home-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: 1.25rem; margin-bottom: 1.25rem; min-width: 0; text-align: left; }
+  .home-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: .9rem; margin-bottom: .9rem; min-width: 0; text-align: left; }
   .home-pair > * { min-width: 0; }
-  .home-overview-copy, .home-module, .recent-posts { height: 100%; min-width: 0; }
-  .home-overview-copy { display: flex; flex-direction: column; justify-content: center; padding: 1.25rem; }
-  .home-module > :global(*) { height: 100%; }
+  .home-overview-copy, .home-module, .recent-posts { min-width: 0; }
+  .home-panel { border: 1px solid var(--border); border-radius: var(--radius-2xl); background: color-mix(in srgb, var(--muted) 28%, transparent); overflow: hidden; }
+  .home-overview-copy { display: flex; flex-direction: column; justify-content: center; padding: 1rem; }
+  .home-module { display: flex; flex-direction: column; }
+  .home-module > :global(*) { flex: 1 1 auto; }
   .home-page :global(.monthly-chart-card),
   .home-page :global(.lang-card),
-  .home-page :global(.gh-contributions) { width: 100%; max-width: none; height: 100%; margin: 0; }
+  .home-page :global(.gh-contributions) { width: 100%; max-width: none; margin: 0; border: 0; background: transparent; border-radius: 0; }
   .home-page :global(.monthly-chart-card), .home-page :global(.lang-card) { display: flex; flex-direction: column; justify-content: center; }
   .home-page :global(.gh-contributions) { display: flex; flex-direction: column; justify-content: center; }
-  .home-community-grid { grid-template-columns: minmax(0, 1.15fr) minmax(360px, .85fr); }
-  .recent-posts { display: flex; flex-direction: column; justify-content: center; padding: 1rem; }
+  .home-page :global(.monthly-chart-card), .home-page :global(.lang-card) { padding: 1rem; }
+  .home-page :global(.lang-title), .home-page :global(.monthly-chart-card > .stat-label), .home-page :global(.gh-contributions > .stat-label) { color: var(--foreground); font-size: .92rem; font-weight: 650; line-height: 1.4; }
+  .home-page :global(.lang-chart-row) { gap: .75rem; }
+  .home-page :global(.lang-pie) { width: 118px; height: 118px; }
+  .home-page :global(.lang-legend) { gap: .2rem; font-size: .7rem; line-height: 1.35; }
+  .home-page :global(.lang-total) { margin-top: .65rem; font-size: .72rem; }
+  .home-community-grid { grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); }
+  .home-page :global(.gh-grid-wrapper) { border: 0; border-radius: 0; background: transparent; padding: .75rem; }
+  .recent-posts { display: flex; flex-direction: column; justify-content: center; padding: .9rem; }
+  .recent-posts :global(main) { width: 100%; max-width: 100%; margin: 0; padding: 0; }
   .recent-posts :global(.card-grid) { grid-template-columns: 1fr; margin: 0; }
+  .recent-posts :global(.blog-card) { border: 1px solid color-mix(in srgb, var(--border) 80%, transparent); background: color-mix(in srgb, var(--background) 38%, transparent); }
+  .recent-posts :global(.card-content) { padding: .75rem; gap: .35rem; }
+  .recent-posts :global(.card-title) { font-size: .92rem; }
+  .recent-posts :global(.card-description) { font-size: .76rem; }
+  .recent-posts :global(.card-date) { font-size: .68rem; }
 
-  @media (max-width: 900px) {
+  @container (max-width: 680px) {
     .home-pair, .home-community-grid { grid-template-columns: 1fr; }
-    .home-overview-copy { padding: .5rem 0; }
-    .recent-posts { padding: 0; }
+    .home-overview-copy { padding: 1rem; }
   }
 
   @media (max-width: 760px) {
@@ -174,7 +188,7 @@ const { repoLanguages, totalRepoLines } = getRepoLanguages();
     }
 
     .stat-number {
-      font-size: 1.8rem;
+      font-size: 1.45rem;
     }
   }
 
@@ -189,7 +203,7 @@ const { repoLanguages, totalRepoLines } = getRepoLanguages();
     }
 
     .stat-number {
-      font-size: 1.5rem;
+      font-size: 1.35rem;
     }
   }
 </style>
