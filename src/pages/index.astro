@@ -33,77 +33,61 @@ const { repoLanguages, totalRepoLines } = getRepoLanguages();
   title={SITE_TITLE}
   description={SITE_DESCRIPTION}
   pubDate={new Date()}
+  fullWidth
 >
   <JsonLd slot="head" data={websiteLd} />
 
   <div class="home-page">
-    <!-- 欢迎语 -->
-    <section class="welcome">
-      <h2 class="mk-title" style="display:inline;">你好！</h2>
-      <h2 style="display:inline;">我是 {SITE_AUTHOR}</h2>
-      <p>{SITE_DESCRIPTION}</p>
+    <section class="home-pair home-overview-grid">
+      <div class="home-overview-copy">
+        <section class="welcome">
+          <h2 class="mk-title" style="display:inline;">你好！</h2>
+          <h2 style="display:inline;">我是 {SITE_AUTHOR}</h2>
+          <p>{SITE_DESCRIPTION}</p>
+        </section>
+        <h2 class="mk-title sr-only">数据统计</h2>
+        <section class="site-stats">
+          <div class="stat-card fade-up-on-scroll"><div class="stat-number">{stats.totalArticles}</div><div class="stat-label">文章</div></div>
+          <div class="stat-card fade-up-on-scroll"><div class="stat-number">{stats.totalCategories}</div><div class="stat-label">分类</div></div>
+          <div class="stat-card fade-up-on-scroll"><div class="stat-number">{stats.totalTags}</div><div class="stat-label">标签</div></div>
+          <div class="stat-card fade-up-on-scroll"><div class="stat-number">{stats.daysSinceLaunch}</div><div class="stat-label">建站天数</div></div>
+          <div class="stat-card fade-up-on-scroll"><div class="stat-number">{fmtNum(stats.totalWords)}</div><div class="stat-label">累计字数</div></div>
+          <div class="stat-card fade-up-on-scroll"><div class="stat-number">{fmtNum(totalRepoLines)}</div><div class="stat-label">代码行数</div></div>
+        </section>
+      </div>
+      <div class="home-module"><MonthlyChart labels={stats.monthLabels} counts={stats.monthCounts} /></div>
     </section>
 
-    <!-- 统计 -->
-    <h2 class="mk-title sr-only">数据统计</h2>
-
-    <section class="site-stats">
-      <div class="stat-card fade-up-on-scroll">
-        <div class="stat-number">{stats.totalArticles}</div>
-        <div class="stat-label">文章</div>
-      </div>
-      <div class="stat-card fade-up-on-scroll" style="animation-delay: 0.05s">
-        <div class="stat-number">{stats.totalCategories}</div>
-        <div class="stat-label">分类</div>
-      </div>
-      <div class="stat-card fade-up-on-scroll" style="animation-delay: 0.1s">
-        <div class="stat-number">{stats.totalTags}</div>
-        <div class="stat-label">标签</div>
-      </div>
-      <div class="stat-card fade-up-on-scroll" style="animation-delay: 0.15s">
-        <div class="stat-number">{stats.daysSinceLaunch}</div>
-        <div class="stat-label">建站天数</div>
-      </div>
-      <div class="stat-card fade-up-on-scroll" style="animation-delay: 0.2s">
-        <div class="stat-number">{fmtNum(stats.totalWords)}</div>
-        <div class="stat-label">累计字数</div>
-      </div>
-      <div class="stat-card fade-up-on-scroll" style="animation-delay: 0.25s">
-        <div class="stat-number">{fmtNum(totalRepoLines)}</div>
-        <div class="stat-label">代码行数</div>
-      </div>
+    <section class="home-pair home-language-grid">
+      <div class="home-module"><GitHubRepoStats languages={repoLanguages} totalLines={totalRepoLines} /></div>
+      <div class="home-module"><GitHubLanguages /></div>
     </section>
 
-    <!-- 月度发文折线图 -->
-    <MonthlyChart labels={stats.monthLabels} counts={stats.monthCounts} />
-
-    <!-- 仓库语言构成 -->
-    <GitHubRepoStats languages={repoLanguages} totalLines={totalRepoLines} />
-
-    <!-- GitHub 个人语言构成 -->
-    <GitHubLanguages />
-
-    <!-- GitHub 贡献墙 -->
-    <GitHubContributions />
-
-    <!-- 近期博客 -->
-    <section class="recent-posts">
-      <h2 class="mk-title section-title">近期文章</h2>
-      <BlogList sort="time" posts={recentPosts} />
+    <section class="home-pair home-community-grid">
+      <div class="home-module"><GitHubContributions /></div>
+      <section class="recent-posts home-module">
+        <h2 class="mk-title section-title">近期文章</h2>
+        <BlogList sort="time" posts={recentPosts} />
+      </section>
     </section>
   </div>
 </Layout>
 
 <style>
   .home-page {
-    max-width: 900px;
+    max-width: 1320px;
     margin: 0 auto;
     padding: 2rem 1rem;
     text-align: center;
   }
 
+  :global(.three-col-layout.full-width-layout > .left-sidebar),
+  :global(.three-col-layout.full-width-layout > .right-sidebar),
+  :global(.three-col-layout.full-width-layout > .sidebar-gutter) { display: none; }
+  :global(.three-col-layout.full-width-layout > .content-main) { width: 100%; flex-basis: 100%; }
+
   .welcome {
-    margin-bottom: 2rem;
+    margin-bottom: 1.25rem;
   }
 
   .welcome h1 {
@@ -121,16 +105,16 @@ const { repoLanguages, totalRepoLines } = getRepoLanguages();
   .site-stats {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 1.5rem;
-    margin: 2.5rem auto;
-    max-width: 760px;
+    gap: 1rem;
+    margin: 1.5rem auto 0;
+    max-width: none;
   }
 
   .stat-card {
     background: rgba(var(--muted-rgb), 0.4);
     border: 1px solid var(--border);
     border-radius: 16px;
-    padding: 1.5rem 1rem;
+    padding: 1.15rem .75rem;
     transition: transform 0.2s ease, border-color 0.2s ease;
   }
 
@@ -154,16 +138,29 @@ const { repoLanguages, totalRepoLines } = getRepoLanguages();
 
   .section-title {
     font-size: 1.4rem;
-    margin: 3rem 0 1.5rem;
+    margin: 0 0 1rem;
     color: var(--foreground-light);
     text-align: center;
   }
 
-  /* 图表和统计卡片之间的间距 */
+  .home-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: 1.25rem; margin-bottom: 1.25rem; min-width: 0; text-align: left; }
+  .home-pair > * { min-width: 0; }
+  .home-overview-copy, .home-module, .recent-posts { height: 100%; min-width: 0; }
+  .home-overview-copy { display: flex; flex-direction: column; justify-content: center; padding: 1.25rem; }
+  .home-module > :global(*) { height: 100%; }
   .home-page :global(.monthly-chart-card),
-  .home-page :global(.repo-stats-card),
-  .home-page :global(#gh-languages-root) {
-    margin-top: 1.5rem;
+  .home-page :global(.lang-card),
+  .home-page :global(.gh-contributions) { width: 100%; max-width: none; height: 100%; margin: 0; }
+  .home-page :global(.monthly-chart-card), .home-page :global(.lang-card) { display: flex; flex-direction: column; justify-content: center; }
+  .home-page :global(.gh-contributions) { display: flex; flex-direction: column; justify-content: center; }
+  .home-community-grid { grid-template-columns: minmax(0, 1.15fr) minmax(360px, .85fr); }
+  .recent-posts { display: flex; flex-direction: column; justify-content: center; padding: 1rem; }
+  .recent-posts :global(.card-grid) { grid-template-columns: 1fr; margin: 0; }
+
+  @media (max-width: 900px) {
+    .home-pair, .home-community-grid { grid-template-columns: 1fr; }
+    .home-overview-copy { padding: .5rem 0; }
+    .recent-posts { padding: 0; }
   }
 
   @media (max-width: 760px) {

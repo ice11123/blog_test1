@@ -14,8 +14,8 @@ import SearchModal from '../components/blog/SearchModal.astro';
 import { stripBase, withBase } from '../lib/urls';
 
 type BlogData = CollectionEntry<'blog'>['data'];
-type Props = Omit<BlogData, 'tags'> & { tags?: string[] };
-const { title, description, pubDate, updatedDate, heroImage, dir1, dir2, tags = [] } = Astro.props;
+type Props = Omit<BlogData, 'tags'> & { tags?: string[]; fullWidth?: boolean };
+const { title, description, pubDate, updatedDate, heroImage, dir1, dir2, tags = [], fullWidth = false } = Astro.props;
 
 // 构建左侧栏数据
 const sidebarData = await getSidebarData();
@@ -39,7 +39,7 @@ const currentSlug = slugMatch ? decodeURIComponent(slugMatch[1].replace(/\/+$/, 
 				</div>
 
 				<!-- 三栏布局容器 -->
-				<div class="three-col-layout">
+				<div class:list={["three-col-layout", { "full-width-layout": fullWidth }]}>
 					<!-- 左侧：可折叠侧边栏（目录树 / 标签树） -->
 					<SidebarLeft posts={sidebarData} currentSlug={currentSlug} />
 

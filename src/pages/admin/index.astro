@@ -56,6 +56,15 @@ const systemCards = [
               <strong>安全提示</strong>
               <span>隐藏入口和站内密码只是界面门槛。正式发布由 GitHub OAuth、HttpOnly 会话、Origin 与 CSRF 校验共同保护；本地草稿仍只保存在当前浏览器。</span>
             </div>
+            <div class="admin-howto" aria-label="管理台操作说明">
+              <p class="admin-howto-title">操作流程</p>
+              <div class="admin-howto-grid">
+                <div><strong>1</strong><span>从目录树选择文章</span></div>
+                <div><strong>2</strong><span>修改正文和元数据</span></div>
+                <div><strong>3</strong><span>保存草稿并检查预览</span></div>
+                <div><strong>4</strong><span>授权后发布到正式网站</span></div>
+              </div>
+            </div>
           </section>
 
           <section class="system-status" aria-labelledby="system-status-title" aria-live="polite">
@@ -151,7 +160,7 @@ const systemCards = [
             </section>
 
             <article class="admin-preview" aria-live="polite">
-              <div class="preview-heading"><span>实时预览</span><span class="admin-muted">基础 Markdown 预览</span></div>
+              <div class="preview-heading"><span>实时预览</span><span class="admin-muted" data-preview-status>等待预览</span></div>
               <div class="preview-body" data-preview></div>
             </article>
           </div>
@@ -178,6 +187,12 @@ const systemCards = [
   .admin-description { margin: 0 0 .9rem; color: var(--foreground-dark); line-height: 1.6; }
   .admin-warning { display: grid; grid-template-columns: auto 1fr; gap: .55rem; padding: .75rem .85rem; border: 1px solid var(--alert-note-border); border-radius: var(--radius-lg); background: var(--alert-note-bg); font-size: .82rem; line-height: 1.55; }
   .admin-warning strong { color: var(--alert-note); }
+  .admin-howto { margin-top: .75rem; padding: .75rem .85rem; min-width: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--background) 58%, transparent); }
+  .admin-howto-title { margin: 0 0 .55rem; color: var(--accent); font-size: .76rem; font-weight: 650; }
+  .admin-howto-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .45rem .7rem; min-width: 0; }
+  .admin-howto-grid > div { display: grid; grid-template-columns: 1.35rem minmax(0, 1fr); align-items: start; gap: .35rem; min-width: 0; color: var(--foreground-dark); font-size: .72rem; line-height: 1.45; }
+  .admin-howto-grid strong { display: grid; place-items: center; width: 1.25rem; height: 1.25rem; color: var(--background); background: var(--accent); border-radius: 50%; font-size: .68rem; }
+  .admin-howto-grid span { min-width: 0; overflow-wrap: anywhere; }
   .system-status-heading { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .8rem; }
   .system-status-heading h2 { margin: .15rem 0 0; font-size: 1.2rem; }
   .status-refresh { display: inline-flex; align-items: center; gap: .35rem; min-height: 2rem; padding: .4rem .65rem; color: var(--foreground); background: transparent; border: 1px solid var(--border); border-radius: var(--radius-lg); cursor: pointer; }
@@ -211,9 +226,9 @@ const systemCards = [
   .sync-button, .form-actions .primary { color: var(--background) !important; background: var(--accent) !important; border-color: var(--accent) !important; font-weight: 650; }
   .sync-button:disabled { opacity: .5; cursor: not-allowed; }
   .tree-mobile-trigger { display: none; align-items: center; gap: .35rem; }
-  .admin-layout { display: grid; grid-template-columns: 240px minmax(520px, 1.4fr) minmax(420px, 1fr); gap: .8rem; align-items: start; }
+  .admin-layout { display: grid; grid-template-columns: 240px minmax(520px, 1.4fr) minmax(420px, 1fr); gap: .8rem; align-items: stretch; }
   .admin-tree-panel, .admin-form, .admin-preview, .current-article-identity { min-width: 0; border-radius: var(--radius-xl); }
-  .admin-tree-panel { position: sticky; top: 1rem; display: flex; flex-direction: column; max-height: calc(100vh - 2rem); padding: .75rem; }
+  .admin-tree-panel { position: sticky; top: 1rem; display: flex; flex-direction: column; height: 100%; min-height: 0; padding: .75rem; }
   .tree-panel-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: .55rem; }
   .tree-panel-heading [data-tree-close] { display: none; color: var(--foreground); background: transparent; border: 0; font-size: 1.5rem; cursor: pointer; }
   .admin-search-label, .body-label, .admin-form label { display: grid; gap: .32rem; font-size: .8rem; }
@@ -225,7 +240,7 @@ const systemCards = [
   .admin-mode-toggle.tag-mode::after { transform: translateX(100%); }
   .admin-mode-toggle button { flex: 1; padding: .42rem .2rem; color: var(--foreground-dark); background: transparent; border: 0; font: inherit; font-size: .78rem; cursor: pointer; }
   .admin-mode-toggle button.active { color: var(--accent); }
-  .admin-tree-scroll { min-height: 0; margin-top: .4rem; overflow-y: auto; scrollbar-width: thin; }
+  .admin-tree-scroll { flex: 1 1 auto; min-height: 0; margin-top: .4rem; overflow-y: auto; scrollbar-width: thin; }
   .admin-tree, .admin-tree ul, .admin-tree li { margin: 0; padding: 0; list-style: none; }
   .admin-node-header,
   .admin-article-button { appearance: none; -webkit-appearance: none; display: flex; align-items: center; gap: .3rem; width: 100%; min-width: 0; margin: 0; color: var(--foreground); background: transparent; border: 0; border-radius: 0 var(--radius-md) var(--radius-md) 0; font: inherit; line-height: 1.35; text-align: left; cursor: pointer; }
@@ -247,11 +262,12 @@ const systemCards = [
   .admin-tree-badge { padding: 1px 4px; color: var(--alert-warning); border: 1px solid var(--alert-warning-border); border-radius: var(--radius-full); background: var(--alert-warning-bg); font-size: .55rem; white-space: nowrap; }
   .admin-tree-badge.active { color: var(--alert-tip); border-color: var(--alert-tip-border); background: var(--alert-tip-bg); }
   .admin-tree-badge.danger { color: var(--alert-caution); border-color: var(--alert-caution-border); background: var(--alert-caution-bg); }
-  .admin-edit-column { display: grid; gap: .55rem; }
+  .admin-edit-column { display: flex; min-width: 0; min-height: 0; flex-direction: column; gap: .55rem; }
   .current-article-identity { display: grid; gap: .2rem; padding: .65rem .8rem; border-left: 3px solid var(--accent); }
   .current-article-identity span { color: var(--accent); font-size: .72rem; font-weight: 650; }
   .current-article-identity code { overflow: hidden; color: var(--foreground-dark); font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }
   .admin-form, .admin-preview { padding: .9rem; }
+  .admin-form { flex: 1 1 auto; min-height: 0; }
   .admin-form textarea { resize: vertical; line-height: 1.5; }
   .admin-form textarea[name="body"] { min-height: 530px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .84rem; }
   .admin-form input[readonly] { opacity: .65; }
@@ -261,13 +277,26 @@ const systemCards = [
   .form-actions { margin-top: .7rem; }
   .edited-at { align-self: center; margin-left: auto; color: var(--foreground-dark); font-size: .72rem; }
   .sync-hint { margin: .55rem 0 0; color: var(--foreground-dark); font-size: .72rem; line-height: 1.5; }
-  .admin-preview { position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow-y: auto; }
+  .admin-preview { position: sticky; top: 1rem; height: 100%; min-height: 0; overflow-y: auto; }
   .preview-heading { display: flex; justify-content: space-between; gap: .5rem; padding-bottom: .55rem; border-bottom: 1px solid var(--border); font-size: .82rem; }
-  .preview-body { min-height: 360px; line-height: 1.7; overflow-wrap: anywhere; }
+  .preview-body { min-height: 360px; line-height: 1.7; overflow-wrap: anywhere; font-family: var(--font-family); }
   .preview-body h1, .preview-body h2, .preview-body h3 { margin: 1rem 0 .5rem; }
   .preview-body p { margin: .7rem 0; }
   .preview-body pre { overflow-x: auto; padding: .75rem; background: var(--background); border: 1px solid var(--border); border-radius: var(--radius-lg); }
   .preview-body img { max-width: 100%; height: auto; }
+  .preview-body .katex-display { overflow-x: auto; overflow-y: hidden; padding: .35rem 0; }
+  .preview-body .mermaid { margin: 1rem auto; overflow-x: auto; text-align: center; background: transparent; }
+  .preview-body .mermaid svg { max-width: 100%; height: auto; }
+  .preview-body .preview-component-card { margin: 1rem 0; padding: .8rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--muted) 45%, transparent); }
+  .preview-body .preview-component-card strong { color: var(--accent); }
+  .preview-body .preview-component-card dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .35rem .65rem; margin: .65rem 0; }
+  .preview-body .preview-component-card dl div { display: grid; grid-template-columns: minmax(4rem, auto) minmax(0, 1fr); gap: .4rem; min-width: 0; }
+  .preview-body .preview-component-card dt { color: var(--foreground-dark); font-size: .72rem; }
+  .preview-body .preview-component-card dd { min-width: 0; margin: 0; overflow: hidden; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }
+  .preview-body .preview-component-card small { color: var(--foreground-dark); }
+  .preview-body details.preview-spoiler { margin: 1rem 0; padding: .65rem .8rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--muted) 35%, transparent); }
+  .preview-body details.preview-spoiler summary { color: var(--accent); cursor: pointer; }
+  .preview-body .preview-render-error { color: var(--alert-caution); border-color: var(--alert-caution-border); background: var(--alert-caution-bg); }
   .admin-muted { color: var(--foreground-dark); font-size: .72rem; }
   .admin-tree-backdrop { display: none; }
 
@@ -305,6 +334,7 @@ const systemCards = [
     .system-status-heading { align-items: flex-start; }
     .status-refresh { white-space: nowrap; }
     .admin-intro, .system-status { padding: .9rem; }
+    .admin-howto-grid { grid-template-columns: 1fr; }
     .admin-actions { grid-template-columns: 1fr; }
   }
 </style>

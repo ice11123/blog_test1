@@ -1,5 +1,5 @@
 // @ts-nocheck -- 管理台依赖构建时注入的数据和浏览器 DOM，所有入口均做运行时保护。
-import { marked } from 'marked';
+import { renderPreview, renderPreviewMermaid } from '../lib/adminPreview';
 
 const ADMIN_UNLOCK_STORAGE_KEY = 'blog-test1-admin-unlocked';
 const DRAFTS_STORAGE_KEY = 'blog-test1-admin-drafts-v1';
@@ -19,6 +19,7 @@ const form = app.querySelector('[data-form]');
 const tree = app.querySelector('[data-post-tree]');
 const treeScroll = app.querySelector('[data-tree-scroll]');
 const preview = app.querySelector('[data-preview]');
+const previewStatus = app.querySelector('[data-preview-status]');
 const statusText = app.querySelector('[data-status]');
 const count = app.querySelector('[data-count]');
 const drawer = app.querySelector('[data-tree-drawer]');
@@ -241,31 +242,6 @@ function formatEditedAt(value) {
   return value ? `最新修改于 ${formatTime(value)}` : '尚未修改';
 }
 
-function renderMarkdown(value) {
-  let source = value.replace(/^---[\s\S]*?---\s*/m, '').replace(/^\s*(import|export)\s+.*$/gm, '');
-  source = source.replace(/<([A-Z][\w]*)\b[^>]*\/>/g, (_, name) => `\n[组件预览：${name}]\n`);
-  source = source.replace(/<([A-Z][\w]*)\b[^>]*>[\s\S]*?<\/\1>/g, (_, name) => `\n[组件预览：${name}]\n`);
-  source = source.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => `\n[数学公式] ${math.trim()}\n`);
-  source = source.replace(/(?<!\$)\$([^$\n]+)\$(?!\$)/g, (_, math) => `[行内公式：${math.trim()}]`);
-  const renderer = new marked.Renderer();
-  renderer.html = ({ text }) => escapeHtml(text);
-  const safeUrl = (value) => /^(?:https?:|mailto:|\/|#)/i.test(String(value || '')) ? String(value) : '';
-  renderer.link = ({ href, title, text }) => {
-    const url = safeUrl(href);
-    const label = escapeHtml(text || href || '链接');
-    if (!url) return label;
-    const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
-    return `<a href="${escapeHtml(url)}"${titleAttr} rel="noopener noreferrer">${label}</a>`;
-  };
-  renderer.image = ({ href, title, text }) => {
-    const url = safeUrl(href);
-    if (!url) return escapeHtml(text || '图片');
-    const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
-    return `<img src="${escapeHtml(url)}" alt="${escapeHtml(text || '')}"${titleAttr} loading="lazy" />`;
-  };
-  return marked.parse(source, { breaks: true, gfm: true, async: false, renderer });
-}
-
 function current() {
   return drafts.find((post) => post.id === selectedId);
 }
@@ -296,7 +272,17 @@ function loadForm() {
 
 function updatePreview() {
   const body = field('body');
-  if (preview && body) preview.innerHTML = renderMarkdown(body.value);
+  if (!preview || !body) return;
+  if (previewStatus) previewStatus.textContent = '正在更新预览…';
+  try {
+    preview.innerHTML = renderPreview(body.value);
+    void renderPreviewMermaid(preview as HTMLElement).finally(() => {
+      if (previewStatus) previewStatus.textContent = `已更新于 ${formatTime(new Date().toISOString())}`;
+    });
+  } catch {
+    preview.innerHTML = '<p class="preview-render-error">预览暂时无法生成，请检查正文格式。</p>';
+    if (previewStatus) previewStatus.textContent = '预览失败';
+  }
 }
 
 function queuePreviewUpdate() {
@@ -305,7 +291,7 @@ function queuePreviewUpdate() {
   if (edited) edited.textContent = formatEditedAt(editedAt);
   setStatus('有未保存修改');
   clearTimeout(previewTimer);
-  previewTimer = setTimeout(updatePreview, 180);
+  previewTimer = setTimeout(updatePreview, 800);
 }
 
 function collect() {
