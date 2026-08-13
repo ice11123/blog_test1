@@ -285,6 +285,8 @@ const systemCards = [
   .preview-body pre { overflow-x: auto; padding: .75rem; background: var(--background); border: 1px solid var(--border); border-radius: var(--radius-lg); }
   .preview-body img { max-width: 100%; height: auto; }
   .preview-body .katex-display { overflow-x: auto; overflow-y: hidden; padding: .35rem 0; }
+  .preview-body .katex, .preview-body .katex * { overflow-wrap: normal; word-break: normal; }
+  .preview-body .katex { white-space: nowrap; }
   .preview-body .mermaid { margin: 1rem auto; overflow-x: auto; text-align: center; background: transparent; }
   .preview-body .mermaid svg { max-width: 100%; height: auto; }
   .preview-body .preview-component-card { margin: 1rem 0; padding: .8rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--muted) 45%, transparent); }

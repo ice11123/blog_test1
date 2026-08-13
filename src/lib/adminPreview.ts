@@ -82,22 +82,22 @@ function extractComponents(source: string, tokens: Map<string, string>): string 
   });
 }
 
-function extractMath(source: string, tokens: Map<string, string>): string {
+function extractMath(source: string, mathTokens: Map<string, string>): string {
   let next = source.replace(/\$\$([\s\S]*?)\$\$/g, (_all, expression) => {
-    const token = `ADMINPREVIEWMATH${tokens.size}TOKEN`;
+    const token = `ADMINPREVIEWMATH${mathTokens.size}TOKEN`;
     try {
-      tokens.set(token, katex.renderToString(expression.trim(), { displayMode: true, throwOnError: false, strict: false }));
+      mathTokens.set(token, katex.renderToString(expression.trim(), { displayMode: true, throwOnError: false, strict: false }));
     } catch {
-      tokens.set(token, `<pre class="preview-render-error">公式无法解析：${escapeHtml(expression.trim())}</pre>`);
+      mathTokens.set(token, `<pre class="preview-render-error">公式无法解析：${escapeHtml(expression.trim())}</pre>`);
     }
     return `\n\n${token}\n\n`;
   });
   next = next.replace(/(?<!\\)\$([^$\n]+?)\$/g, (_all, expression) => {
-    const token = `ADMINPREVIEWMATH${tokens.size}TOKEN`;
+    const token = `ADMINPREVIEWMATH${mathTokens.size}TOKEN`;
     try {
-      tokens.set(token, katex.renderToString(expression.trim(), { displayMode: false, throwOnError: false, strict: false }));
+      mathTokens.set(token, katex.renderToString(expression.trim(), { displayMode: false, throwOnError: false, strict: false }));
     } catch {
-      tokens.set(token, `<code>${escapeHtml(expression.trim())}</code>`);
+      mathTokens.set(token, `<code>${escapeHtml(expression.trim())}</code>`);
     }
     return token;
   });
@@ -155,20 +155,27 @@ function createRenderer(): Renderer {
 
 export function renderPreview(source: string): string {
   const tokens = new Map<string, string>();
+  const mathTokens = new Map<string, string>();
   let markdown = stripDocumentSyntax(source);
   markdown = extractComponents(markdown, tokens);
-  markdown = extractMath(markdown, tokens);
+  markdown = extractMath(markdown, mathTokens);
   markdown = transformAlerts(markdown, tokens);
   let html = marked.parse(markdown, { gfm: true, breaks: true, async: false, renderer: createRenderer() }) as string;
   for (const [token, replacement] of tokens) {
     html = html.replaceAll(token, replacement);
   }
-  return DOMPurify.sanitize(html, {
+  let sanitized = DOMPurify.sanitize(html, {
     ADD_ATTR: ['class', 'data-mermaid-code', 'data-preview-component'],
     ADD_TAGS: ['details', 'summary'],
     FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'form'],
     FORBID_ATTR: ['style'],
   });
+  // KaTeX 的布局依赖它自身生成的受控内联 style（上下标、根号、积分等）。
+  // 普通文章 HTML 先完成严格净化，再回填本地 KaTeX 生成结果，避免向用户 HTML 开放 style。
+  for (const [token, replacement] of mathTokens) {
+    sanitized = sanitized.replaceAll(token, replacement);
+  }
+  return sanitized;
 }
 
 function css(name: string): string {
