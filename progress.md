@@ -37,3 +37,4 @@
 - 提交 `810f767` 已推送，GitHub Pages 工作流 #41 成功。线上管理台带版本参数复核得到 39 个 KaTeX 定位 style，块级公式高度约 65px；线上截图确认欧拉公式、积分上下限、指数与根号均正常。
 - 创建并认领 P0 Beads 缺陷 `blog_test1-ef0`；浏览器确认 Spoiler 正文位于默认关闭的 details 内，Prism token 节点存在但计算颜色全部等于正文色。
 - 修复后本地浏览器验证：Spoiler 默认展开并显示正文，代码 token 已按主题变量着色（关键字紫、函数黄、类型蓝、标点青）；KaTeX、Mermaid 与 Plot3D 未出现回归。
+- 提交 `8bf1055` 已推送并上线。线上管理台验证：Spoiler `open=true` 且正文完整；浅色主题 Prism token 呈现紫色关键字、棕色函数、蓝色类型和深灰标点，不再全部继承正文色。
