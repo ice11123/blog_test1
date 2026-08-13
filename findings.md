@@ -24,3 +24,6 @@
 - GitHub Pages 已成功部署新提交；无查询参数的旧标签页一度命中旧缓存，使用提交版本查询参数重新加载后得到新 DOM，确认 `full-width-layout` 已消失且两侧栏已恢复。
 - 管理台公式错位的确定根因：KaTeX CSS 已加载，但最终 DOM 中所有 KaTeX 内联 `style` 均被 DOMPurify 的 `FORBID_ATTR: ['style']` 删除；积分上下限等节点因此丢失垂直定位。修复不能全局允许文章 style，应在普通内容净化完成后仅回填本地 KaTeX 的可信输出。
 - Spoiler 与代码预览复现结论：Spoiler 正文实际存在但 `<details>` 默认关闭，导致实时预览看起来像内容丢失；Prism 已生成完整 `.token` 节点，但 `syntax-highlight.css` 只定义颜色变量、没有 token 选择器，所有 token 继承正文颜色。
+- 管理台无限增高根因：`.admin-preview { height:100%; overflow-y:auto }` 的百分比高度来自同一 Grid 行，而 Grid 行又由 `.preview-body` 内容高度决定，形成“内容撑高行、行再撑高预览”的循环；中间 `.admin-form` 同时被 stretch 到 1380px，授权提示下方出现约 300px 空白。
+- 修复后桌面端三列工作区固定为约 1460px，正文编辑框增至约 758px，授权提示距表单底部约 15px；长文压力测试将预览内容扩展到 11894px 时页面总高度仍保持 2318px，证明滚动被限制在 `.preview-body` 内部。
+- 390×844 移动端实测：页面文档宽度 381px、无横向溢出；预览外框约 658px，内部内容约 1430px，并由预览正文独立滚动。

@@ -38,3 +38,7 @@
 - 创建并认领 P0 Beads 缺陷 `blog_test1-ef0`；浏览器确认 Spoiler 正文位于默认关闭的 details 内，Prism token 节点存在但计算颜色全部等于正文色。
 - 修复后本地浏览器验证：Spoiler 默认展开并显示正文，代码 token 已按主题变量着色（关键字紫、函数黄、类型蓝、标点青）；KaTeX、Mermaid 与 Plot3D 未出现回归。
 - 提交 `8bf1055` 已推送并上线。线上管理台验证：Spoiler `open=true` 且正文完整；浅色主题 Prism token 呈现紫色关键字、棕色函数、蓝色类型和深灰标点，不再全部继承正文色。
+- 创建并认领 Beads 缺陷 `blog_test1-d24`；桌面实测预览和三列 Grid 高度均为约 1458px，中间 textarea 仅 530px，表单被预览内容拉伸后在授权提示下方留下约 300px 空白。
+- 将桌面端目录、编辑列和预览统一限定为 1460px 工作区；预览改为固定外框与内部滚动，正文 textarea 使用 flex 填充表单剩余高度；1180px 与 760px 断点分别使用 760px 和 `min(680px, 78dvh)` 预览高度。
+- 浏览器压力测试临时追加 80 个 Markdown 段落：预览正文 `scrollHeight` 从约 1398px 增至 11894px，页面总高度保持 2318px；测试后已恢复原文。桌面及 390×844 移动端截图确认三列边界、提示底部留白和响应式滚动均正常。
+- 质量门禁通过：`pnpm run check`、`pnpm run build`、Worker 20 项测试及 `node --check worker/src/index.js` 全部成功。
