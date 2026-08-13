@@ -6,8 +6,11 @@ Worker 负责 GitHub OAuth 和管理台文章发布。GitHub OAuth token 加密�
 
 - `GET /health`：检测 Worker 配置和 KV 绑定，不要求登录，但要求合法 Origin。
 - `GET /api/status`：使用当前 HttpOnly 会话读取目标仓库 `main` HEAD 和最近一次 `deploy.yml` 工作流状态。
+- `GET /api/public-status`：首页匿名只读状态，不要求 Cookie 或 CSRF；返回脱敏后的仓库 HEAD 与 Pages 状态。
 
 状态接口只返回展示所需的布尔状态、时间、公开 GitHub URL 和短期运行信息，不返回任何 Secret、OAuth token、CSRF token 或原始 GitHub 错误。
+
+公共状态使用 KV 缓存 90 秒。GitHub 匿名 API 暂时失败但存在旧缓存时，接口返回旧数据并标记 `stale: true`；无缓存时返回安全的 503，不暴露上游错误。
 
 ## OAuth 配置
 

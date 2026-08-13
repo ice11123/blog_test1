@@ -3,6 +3,7 @@ import { getCollection } from 'astro:content';
 import { SITE_AUTHOR, SITE_DESCRIPTION, SITE_TITLE, fmtNum } from '../consts';
 import { computeSiteStats } from '../lib/blogStats';
 import { getRepoLanguages } from '../lib/repoStats';
+import { parseMaintenance } from '../lib/maintenance';
 import Layout from '../layouts/BlogPost.astro';
 import JsonLd from '../components/blog/JsonLd.astro';
 import BlogList from '../components/blog/BlogList.astro';
@@ -10,7 +11,9 @@ import GitHubContributions from '../components/github/GitHubContributions.astro'
 import MonthlyChart from '../components/github/MonthlyChart.astro';
 import GitHubRepoStats from '../components/github/GitHubRepoStats.astro';
 import GitHubLanguages from '../components/github/GitHubLanguages.astro';
+import PublicStatus from '../components/home/PublicStatus.astro';
 import { withBase } from '../lib/urls';
+import maintenanceSource from '../content/maintenance.md?raw';
 
 const websiteLd = {
   '@context': 'https://schema.org',
@@ -27,134 +30,91 @@ const recentPosts = allPosts
 
 const stats = computeSiteStats(allPosts);
 const { repoLanguages, totalRepoLines } = getRepoLanguages();
+const maintenanceEntries = await parseMaintenance(maintenanceSource);
 ---
 
-<Layout
-  title={SITE_TITLE}
-  description={SITE_DESCRIPTION}
-  pubDate={new Date()}
-  sidebarsExpanded
->
+<Layout title={SITE_TITLE} description={SITE_DESCRIPTION} pubDate={new Date()} sidebarsExpanded>
   <JsonLd slot="head" data={websiteLd} />
 
+  <div class="home-width-container">
   <div class="home-page">
-    <section class="home-pair home-overview-grid">
-      <div class="home-panel home-overview-copy">
-        <section class="welcome">
-          <h2 class="mk-title" style="display:inline;">你好！</h2>
-          <h2 style="display:inline;">我是 {SITE_AUTHOR}</h2>
-          <p>{SITE_DESCRIPTION}</p>
-        </section>
-        <h2 class="mk-title sr-only">数据统计</h2>
-        <section class="site-stats">
-          <div class="stat-card fade-up-on-scroll"><div class="stat-number">{stats.totalArticles}</div><div class="stat-label">文章</div></div>
-          <div class="stat-card fade-up-on-scroll"><div class="stat-number">{stats.totalCategories}</div><div class="stat-label">分类</div></div>
-          <div class="stat-card fade-up-on-scroll"><div class="stat-number">{stats.totalTags}</div><div class="stat-label">标签</div></div>
-          <div class="stat-card fade-up-on-scroll"><div class="stat-number">{stats.daysSinceLaunch}</div><div class="stat-label">建站天数</div></div>
-          <div class="stat-card fade-up-on-scroll"><div class="stat-number">{fmtNum(stats.totalWords)}</div><div class="stat-label">累计字数</div></div>
-          <div class="stat-card fade-up-on-scroll"><div class="stat-number">{fmtNum(totalRepoLines)}</div><div class="stat-label">代码行数</div></div>
-        </section>
-      </div>
-      <div class="home-panel home-module"><MonthlyChart labels={stats.monthLabels} counts={stats.monthCounts} /></div>
-    </section>
-
-    <section class="home-pair home-language-grid">
-      <div class="home-panel home-module"><GitHubRepoStats languages={repoLanguages} totalLines={totalRepoLines} /></div>
-      <div class="home-panel home-module"><GitHubLanguages /></div>
-    </section>
-
-    <section class="home-pair home-community-grid">
-      <div class="home-panel home-module"><GitHubContributions /></div>
-      <section class="recent-posts home-panel home-module">
-        <h2 class="mk-title section-title">近期文章</h2>
-        <BlogList sort="time" posts={recentPosts} />
+    <div class="home-primary">
+      <section class="home-pair home-overview-grid">
+        <div class="home-panel home-overview-copy">
+          <section class="welcome">
+            <h2 class="mk-title" style="display:inline;">你好！</h2>
+            <h2 style="display:inline;">我是 {SITE_AUTHOR}</h2>
+            <p>{SITE_DESCRIPTION}</p>
+          </section>
+          <h2 class="mk-title sr-only">数据统计</h2>
+          <section class="site-stats">
+            <div class="stat-card fade-up-on-scroll"><div class="stat-number">{stats.totalArticles}</div><div class="stat-label">文章</div></div>
+            <div class="stat-card fade-up-on-scroll"><div class="stat-number">{stats.totalCategories}</div><div class="stat-label">分类</div></div>
+            <div class="stat-card fade-up-on-scroll"><div class="stat-number">{stats.totalTags}</div><div class="stat-label">标签</div></div>
+            <div class="stat-card fade-up-on-scroll"><div class="stat-number">{stats.daysSinceLaunch}</div><div class="stat-label">建站天数</div></div>
+            <div class="stat-card fade-up-on-scroll"><div class="stat-number">{fmtNum(stats.totalWords)}</div><div class="stat-label">累计字数</div></div>
+            <div class="stat-card fade-up-on-scroll"><div class="stat-number">{fmtNum(totalRepoLines)}</div><div class="stat-label">代码行数</div></div>
+          </section>
+        </div>
+        <div class="home-panel home-module"><MonthlyChart labels={stats.monthLabels} counts={stats.monthCounts} /></div>
       </section>
-    </section>
+
+      <section class="home-pair home-language-grid">
+        <div class="home-panel home-module"><GitHubRepoStats languages={repoLanguages} totalLines={totalRepoLines} /></div>
+        <div class="home-panel home-module"><GitHubLanguages /></div>
+      </section>
+
+      <section class="home-pair home-community-grid">
+        <div class="home-panel home-module"><GitHubContributions /></div>
+        <section class="recent-posts home-panel home-module">
+          <h2 class="mk-title section-title">近期文章</h2>
+          <BlogList sort="time" posts={recentPosts} />
+        </section>
+      </section>
+    </div>
+
+    <aside class="home-info-column" aria-label="站点状态与维护公告">
+      <section class="home-info-panel"><PublicStatus /></section>
+      <section class="home-info-panel maintenance-panel">
+        <div class="maintenance-heading">
+          <p class="status-eyebrow">MAINTENANCE LOG</p>
+          <h2>近期博客维护公告</h2>
+        </div>
+        <div class="maintenance-scroll">
+          {maintenanceEntries.map((entry, index) => (
+            <details class="maintenance-entry" open={index === 0}>
+              <summary><time datetime={entry.date}>{entry.date}</time><span>{entry.title}</span></summary>
+              <div class="maintenance-body" set:html={entry.html}></div>
+            </details>
+          ))}
+        </div>
+      </section>
+    </aside>
+  </div>
   </div>
 </Layout>
 
 <style>
-  .home-page {
-    width: 100%;
-    max-width: 760px;
-    margin: 0 auto;
-    padding: 1.25rem 1rem 2rem;
-    text-align: center;
-    container-type: inline-size;
-  }
-
-  .welcome {
-    margin-bottom: 1rem;
-    text-align: left;
-  }
-
-  .welcome h2 {
-    font-size: 1.55rem;
-    line-height: 1.35;
-    color: var(--foreground-light);
-  }
-
-  .welcome p {
-    margin: .55rem 0 0;
-    color: var(--foreground-dark);
-    font-size: .92rem;
-    line-height: 1.65;
-  }
-
-  /* 站点统计卡片 — 3 列网格 */
-  .site-stats {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: .65rem;
-    margin: 1rem auto 0;
-    max-width: none;
-  }
-
-  .stat-card {
-    background: rgba(var(--muted-rgb), 0.4);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-xl);
-    padding: .8rem .45rem;
-    transition: transform 0.2s ease, border-color 0.2s ease;
-  }
-
-  .stat-card:hover {
-    transform: translateY(-2px);
-    border-color: var(--accent);
-  }
-
-  .stat-number {
-    font-size: 1.55rem;
-    font-weight: 700;
-    color: var(--accent-light);
-    line-height: 1.2;
-  }
-
-  .stat-label {
-    font-size: 0.76rem;
-    color: var(--foreground-dark);
-    margin-top: 0.3rem;
-  }
-
-  .section-title {
-    font-size: 1.18rem;
-    margin: 0 0 .75rem;
-    color: var(--foreground-light);
-    text-align: center;
-  }
-
-  .home-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: .9rem; margin-bottom: .9rem; min-width: 0; text-align: left; }
-  .home-pair > * { min-width: 0; }
-  .home-overview-copy, .home-module, .recent-posts { min-width: 0; }
-  .home-panel { border: 1px solid var(--border); border-radius: var(--radius-2xl); background: color-mix(in srgb, var(--muted) 28%, transparent); overflow: hidden; }
+  .home-width-container { width: 100%; min-width: 0; container-type: inline-size; }
+  .home-page { box-sizing: border-box; width: 100%; max-width: none; margin: 0 auto; padding: 1.25rem 1rem 2rem; text-align: center; }
+  .home-primary { width: min(760px, 100%); margin: 0 auto; }
+  .welcome { margin-bottom: 1rem; text-align: left; }
+  .welcome h2 { color: var(--foreground-light); font-size: 1.55rem; line-height: 1.35; }
+  .welcome p { margin: .55rem 0 0; color: var(--foreground-dark); font-size: .92rem; line-height: 1.65; }
+  .site-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .65rem; max-width: none; margin: 1rem auto 0; }
+  .stat-card { padding: .8rem .45rem; background: rgba(var(--muted-rgb), .4); border: 1px solid var(--border); border-radius: var(--radius-xl); transition: transform .2s ease, border-color .2s ease; }
+  .stat-card:hover { transform: translateY(-2px); border-color: var(--accent); }
+  .stat-number { color: var(--accent-light); font-size: 1.55rem; font-weight: 700; line-height: 1.2; }
+  .stat-label { margin-top: .3rem; color: var(--foreground-dark); font-size: .76rem; }
+  .section-title { margin: 0 0 .75rem; color: var(--foreground-light); font-size: 1.18rem; text-align: center; }
+  .home-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: .9rem; min-width: 0; margin-bottom: .9rem; text-align: left; }
+  .home-pair > *, .home-overview-copy, .home-module, .recent-posts { min-width: 0; }
+  .home-panel, .home-info-panel { overflow: hidden; background: color-mix(in srgb, var(--muted) 28%, transparent); border: 1px solid var(--border); border-radius: var(--radius-2xl); }
   .home-overview-copy { display: flex; flex-direction: column; justify-content: center; padding: 1rem; }
   .home-module { display: flex; flex-direction: column; }
   .home-module > :global(*) { flex: 1 1 auto; }
-  .home-page :global(.monthly-chart-card),
-  .home-page :global(.lang-card),
-  .home-page :global(.gh-contributions) { width: 100%; max-width: none; margin: 0; border: 0; background: transparent; border-radius: 0; }
-  .home-page :global(.monthly-chart-card), .home-page :global(.lang-card) { display: flex; flex-direction: column; justify-content: center; }
-  .home-page :global(.gh-contributions) { display: flex; flex-direction: column; justify-content: center; }
+  .home-page :global(.monthly-chart-card), .home-page :global(.lang-card), .home-page :global(.gh-contributions) { width: 100%; max-width: none; margin: 0; background: transparent; border: 0; border-radius: 0; }
+  .home-page :global(.monthly-chart-card), .home-page :global(.lang-card), .home-page :global(.gh-contributions) { display: flex; flex-direction: column; justify-content: center; }
   .home-page :global(.monthly-chart-card), .home-page :global(.lang-card) { padding: 1rem; }
   .home-page :global(.lang-title), .home-page :global(.monthly-chart-card > .stat-label), .home-page :global(.gh-contributions > .stat-label) { color: var(--foreground); font-size: .92rem; font-weight: 650; line-height: 1.4; }
   .home-page :global(.lang-chart-row) { gap: .75rem; }
@@ -162,48 +122,57 @@ const { repoLanguages, totalRepoLines } = getRepoLanguages();
   .home-page :global(.lang-legend) { gap: .2rem; font-size: .7rem; line-height: 1.35; }
   .home-page :global(.lang-total) { margin-top: .65rem; font-size: .72rem; }
   .home-community-grid { grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); }
-  .home-page :global(.gh-grid-wrapper) { border: 0; border-radius: 0; background: transparent; padding: .75rem; }
+  .home-page :global(.gh-grid-wrapper) { padding: .75rem; background: transparent; border: 0; border-radius: 0; }
   .recent-posts { display: flex; flex-direction: column; justify-content: center; padding: .9rem; }
   .recent-posts :global(main) { width: 100%; max-width: 100%; margin: 0; padding: 0; }
   .recent-posts :global(.card-grid) { grid-template-columns: 1fr; margin: 0; }
-  .recent-posts :global(.blog-card) { border: 1px solid color-mix(in srgb, var(--border) 80%, transparent); background: color-mix(in srgb, var(--background) 38%, transparent); }
-  .recent-posts :global(.card-content) { padding: .75rem; gap: .35rem; }
+  .recent-posts :global(.blog-card) { background: color-mix(in srgb, var(--background) 38%, transparent); border: 1px solid color-mix(in srgb, var(--border) 80%, transparent); }
+  .recent-posts :global(.card-content) { gap: .35rem; padding: .75rem; }
   .recent-posts :global(.card-title) { font-size: .92rem; }
   .recent-posts :global(.card-description) { font-size: .76rem; }
   .recent-posts :global(.card-date) { font-size: .68rem; }
 
-  @container (max-width: 680px) {
+  .home-info-column { display: grid; gap: .9rem; width: min(760px, 100%); margin: .35rem auto 0; padding-top: 1rem; border-top: 1px solid color-mix(in srgb, var(--accent) 55%, var(--border)); text-align: left; }
+  .home-info-panel { min-width: 0; padding: 1rem; }
+  .maintenance-heading { margin-bottom: .7rem; }
+  .maintenance-heading h2 { margin: .15rem 0 0; font-size: 1rem; }
+  .maintenance-scroll { display: grid; gap: .5rem; max-height: 560px; padding-right: .2rem; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; }
+  .maintenance-entry { overflow: hidden; padding: 0; margin: 0; background: color-mix(in srgb, var(--background) 42%, transparent); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+  .maintenance-entry[open] { border-color: color-mix(in srgb, var(--accent) 60%, var(--border)); }
+  .maintenance-entry summary { position: relative; display: grid; gap: .18rem; padding: .65rem .72rem .65rem 1.05rem; margin: 0; color: var(--foreground); cursor: pointer; list-style: none; }
+  .maintenance-entry[open] > summary { margin-bottom: 0; }
+  .maintenance-entry summary::-webkit-details-marker { display: none; }
+  .maintenance-entry summary::before { content: '›'; position: absolute; left: .45rem; top: .72rem; color: var(--accent); transform: rotate(0deg); transition: transform var(--transition-base); }
+  .maintenance-entry[open] summary::before { transform: rotate(90deg); }
+  .maintenance-entry summary time { color: var(--accent); font-size: .66rem; font-weight: 650; }
+  .maintenance-entry summary span { padding-left: .35rem; font-size: .78rem; font-weight: 650; line-height: 1.45; }
+  .maintenance-body { padding: 0 .8rem .75rem; color: var(--foreground-dark); font-size: .72rem; line-height: 1.65; }
+  .maintenance-body :global(p), .maintenance-body :global(ul) { margin: .45rem 0 0; }
+  .maintenance-body :global(ul) { padding-left: 1.2rem; }
+
+  @container (min-width: 1040px) {
+    .home-page { display: grid; grid-template-columns: minmax(0, 760px) 280px; justify-content: center; align-items: start; gap: 1rem; padding-inline: 0; }
+    .home-primary { margin: 0; }
+    .home-info-column { position: sticky; top: 4.5rem; width: auto; margin: 0; padding: 0 0 0 1rem; border-top: 0; border-left: 1px solid color-mix(in srgb, var(--accent) 55%, var(--border)); }
+  }
+  @container (min-width: 1120px) {
+    .home-page { grid-template-columns: minmax(0, 760px) 340px; gap: 1.15rem; }
+    .home-info-column { padding-left: 1.15rem; }
+  }
+  @container (max-width: 679px) {
     .home-pair, .home-community-grid { grid-template-columns: 1fr; }
     .home-overview-copy { padding: 1rem; }
   }
-
   @media (max-width: 760px) {
-    .site-stats {
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1rem;
-    }
-
-    .stat-card {
-      padding: 1rem 0.8rem;
-    }
-
-    .stat-number {
-      font-size: 1.45rem;
-    }
+    .home-page { padding-inline: .75rem; }
+    .site-stats { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+    .stat-card { padding: 1rem .8rem; }
+    .stat-number { font-size: 1.45rem; }
+    .home-info-panel { padding: .85rem; }
   }
-
   @media (max-width: 420px) {
-    .site-stats {
-      grid-template-columns: repeat(2, 1fr);
-      gap: 0.6rem;
-    }
-
-    .stat-card {
-      padding: 0.8rem 0.5rem;
-    }
-
-    .stat-number {
-      font-size: 1.35rem;
-    }
+    .site-stats { gap: .6rem; }
+    .stat-card { padding: .8rem .5rem; }
+    .stat-number { font-size: 1.35rem; }
   }
 </style>

@@ -3,6 +3,8 @@ const SESSION_TTL = 60 * 60 * 24 * 7;
 const SESSION_PREFIX = 'session:v3:';
 const DEFAULT_ADMIN_PATH = '/blog_test1/admin/';
 const GITHUB_TIMEOUT_MS = 15_000;
+const PUBLIC_STATUS_CACHE_KEY = 'public-status:v1';
+const PUBLIC_STATUS_CACHE_SECONDS = 90;
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -24,6 +26,7 @@ export default {
       if (url.pathname === '/auth/github' && request.method === 'GET') return githubLogin(url, env);
       if (url.pathname === '/auth/callback' && request.method === 'GET') return await githubCallback(request, url, env);
       if (url.pathname === '/health' && request.method === 'GET') return await health(request, env);
+      if (url.pathname === '/api/public-status' && request.method === 'GET') return await publicStatus(request, env);
       if (url.pathname === '/auth/me' && request.method === 'GET') return await authMe(request, env);
       if (url.pathname === '/api/status' && request.method === 'GET') return await adminStatus(request, env);
       if (url.pathname === '/api/sync' && request.method === 'POST') return await syncPost(request, env);
@@ -110,6 +113,94 @@ async function health(request, env) {
   } catch {
     return cors(json({ ok: false, checkedAt }, 503), env, request);
   }
+}
+
+async function publicStatus(request, env) {
+  requireOrigin(request, env);
+  requireEnv(env, ['ALLOWED_ORIGIN', 'GITHUB_OWNER', 'GITHUB_REPO', 'GITHUB_BRANCH']);
+  if (!env.SESSIONS || typeof env.SESSIONS.get !== 'function' || typeof env.SESSIONS.put !== 'function') {
+    return cors(json(publicStatusFailure(env), 503), env, request);
+  }
+
+  const cached = await readPublicStatusCache(env);
+  if (cached && Date.now() - Date.parse(cached.checkedAt) < PUBLIC_STATUS_CACHE_SECONDS * 1000) {
+    return cors(json(cached), env, request);
+  }
+
+  try {
+    const fresh = await fetchPublicStatus(env);
+    await env.SESSIONS.put(PUBLIC_STATUS_CACHE_KEY, JSON.stringify(fresh), { expirationTtl: 86_400 });
+    return cors(json(fresh), env, request);
+  } catch {
+    if (cached) return cors(json({ ...cached, stale: true }), env, request);
+    return cors(json(publicStatusFailure(env), 503), env, request);
+  }
+}
+
+async function readPublicStatusCache(env) {
+  try {
+    const raw = await env.SESSIONS.get(PUBLIC_STATUS_CACHE_KEY);
+    if (!raw) return null;
+    const value = JSON.parse(raw);
+    return value?.ok === true && typeof value.checkedAt === 'string' ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchPublicStatus(env) {
+  const ref = await githubPublicFetch(`/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/git/ref/heads/${encodeURIComponent(env.GITHUB_BRANCH)}`);
+  const headSha = typeof ref?.object?.sha === 'string' ? ref.object.sha : '';
+  if (!headSha) throw new Error('GitHub ref response missing SHA');
+
+  let deployment = { status: 'unknown', updatedAt: null, url: null };
+  try {
+    const runs = await githubPublicFetch(`/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/actions/workflows/deploy.yml/runs`, {
+      query: { branch: env.GITHUB_BRANCH, per_page: '1' },
+    });
+    const run = Array.isArray(runs?.workflow_runs) ? runs.workflow_runs[0] : null;
+    if (run) deployment = {
+      status: normalizeDeploymentStatus(run.status, run.conclusion),
+      updatedAt: typeof run.updated_at === 'string' ? run.updated_at : null,
+      url: typeof run.html_url === 'string' ? run.html_url : null,
+    };
+  } catch {
+    deployment = { status: 'failure', updatedAt: null, url: null };
+  }
+
+  return {
+    ok: true,
+    checkedAt: new Date().toISOString(),
+    stale: false,
+    worker: { ok: true },
+    repository: {
+      ok: true,
+      owner: env.GITHUB_OWNER,
+      name: env.GITHUB_REPO,
+      branch: env.GITHUB_BRANCH,
+      headSha,
+      commitUrl: commitUrl(env, headSha),
+    },
+    deployment,
+  };
+}
+
+function publicStatusFailure(env) {
+  return {
+    ok: false,
+    checkedAt: new Date().toISOString(),
+    stale: false,
+    worker: { ok: true },
+    repository: {
+      ok: false,
+      owner: env.GITHUB_OWNER,
+      name: env.GITHUB_REPO,
+      branch: env.GITHUB_BRANCH,
+      headSha: null,
+      commitUrl: null,
+    },
+    deployment: { status: 'failure', updatedAt: null, url: null },
+  };
 }
 
 async function adminStatus(request, env) {
@@ -249,6 +340,26 @@ async function githubFetch(path, token, options = {}) {
   if (response.status === 404) return null;
   if (response.status === 409 || response.status === 422) throw new HttpError(409, '仓库内容已发生变化，请刷新管理台后重试');
   if (!response.ok) throw new Error(`GitHub API failed (${response.status})`);
+  return response.json();
+}
+
+async function githubPublicFetch(path, options = {}) {
+  const requestUrl = new URL(API + path);
+  if (options.query) for (const [key, value] of Object.entries(options.query)) requestUrl.searchParams.set(key, String(value));
+  let response;
+  try {
+    response = await fetch(requestUrl, {
+      headers: {
+        Accept: 'application/vnd.github+json',
+        'User-Agent': 'blog-test1-public-status',
+      },
+      signal: AbortSignal.timeout(GITHUB_TIMEOUT_MS),
+    });
+  } catch (error) {
+    if (error?.name === 'TimeoutError' || error?.name === 'AbortError') throw new HttpError(504, 'GitHub API request timed out');
+    throw error;
+  }
+  if (!response.ok) throw new Error(`GitHub public API failed (${response.status})`);
   return response.json();
 }
 

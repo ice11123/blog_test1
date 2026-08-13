@@ -193,26 +193,6 @@ const systemCards = [
   .admin-howto-grid > div { display: grid; grid-template-columns: 1.35rem minmax(0, 1fr); align-items: start; gap: .35rem; min-width: 0; color: var(--foreground-dark); font-size: .72rem; line-height: 1.45; }
   .admin-howto-grid strong { display: grid; place-items: center; width: 1.25rem; height: 1.25rem; color: var(--background); background: var(--accent); border-radius: 50%; font-size: .68rem; }
   .admin-howto-grid span { min-width: 0; overflow-wrap: anywhere; }
-  .system-status-heading { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .8rem; }
-  .system-status-heading h2 { margin: .15rem 0 0; font-size: 1.2rem; }
-  .status-refresh { display: inline-flex; align-items: center; gap: .35rem; min-height: 2rem; padding: .4rem .65rem; color: var(--foreground); background: transparent; border: 1px solid var(--border); border-radius: var(--radius-lg); cursor: pointer; }
-  .status-refresh:hover { color: var(--accent); border-color: var(--accent); }
-  .system-status-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; min-width: 0; }
-  .system-card { --state-color: var(--alert-warning); --state-bg: var(--alert-warning-bg); min-width: 0; width: 100%; padding: .65rem .72rem; border: 1px solid var(--state-color); border-radius: var(--radius-lg); background: var(--state-bg); transition: border-color var(--transition-base), background var(--transition-base); }
-  .system-card[data-state="ok"] { --state-color: var(--alert-tip); --state-bg: var(--alert-tip-bg); }
-  .system-card[data-state="error"] { --state-color: var(--alert-caution); --state-bg: var(--alert-caution-bg); }
-  .system-card header { display: flex; align-items: center; gap: .4rem; min-width: 0; }
-  .system-card header strong { min-width: 0; overflow: hidden; font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
-  .system-card header [data-card-state] { margin-left: auto; color: var(--state-color); font-size: .68rem; }
-  .system-dot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: var(--state-color); box-shadow: 0 0 0 3px color-mix(in srgb, var(--state-color) 18%, transparent); }
-  .system-card[data-state="checking"] .system-dot { animation: status-pulse 1.2s ease-in-out infinite; }
-  .system-card p { margin: .42rem 0 .15rem; overflow: hidden; font-size: .8rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-  .system-card small { display: block; min-height: 1.15em; overflow: hidden; color: var(--foreground-dark); font-size: .68rem; text-overflow: ellipsis; white-space: nowrap; }
-  .system-card a { display: inline-block; margin-top: .25rem; color: var(--state-color); font-size: .68rem; }
-  .system-card a[hidden] { display: none; }
-  @keyframes status-pulse { 50% { opacity: .35; transform: scale(.78); } }
-  @media (prefers-reduced-motion: reduce) { .system-card[data-state="checking"] .system-dot { animation: none; } }
-
   .admin-locked { max-width: 520px; margin: 2rem auto; padding: 1.6rem; text-align: center; border-radius: var(--radius-xl); }
   .admin-locked h2, .admin-locked p { margin: 0; }
   .admin-locked p { margin-top: .55rem; color: var(--foreground-dark); }

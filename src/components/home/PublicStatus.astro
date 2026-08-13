@@ -1,0 +1,42 @@
+---
+import { ADMIN_SYNC_API_URL } from '../../consts';
+
+const cards = [
+  ['frontend', '管理台前端', '等待页面初始化'],
+  ['worker', 'Cloudflare Worker', '等待连接检测'],
+  ['repository', '目标仓库', '等待读取 main 分支'],
+  ['deployment', 'GitHub Pages', '等待读取部署状态'],
+];
+---
+
+<section class="home-status" data-public-status data-status-endpoint={ADMIN_SYNC_API_URL} aria-live="polite">
+  <div class="system-status-heading">
+    <div>
+      <p class="status-eyebrow">LIVE STATUS</p>
+      <h2>系统状态</h2>
+    </div>
+    <button type="button" class="status-refresh" data-public-status-refresh aria-label="重新检测系统状态">
+      <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>重检</span>
+    </button>
+  </div>
+  <div class="system-status-grid home-status-grid">
+    {cards.map(([key, title, initial]) => (
+      <article class="system-card" data-public-card={key} data-state="checking">
+        <header><span class="system-dot"></span><strong>{title}</strong><span data-card-state>检测中</span></header>
+        <p data-card-value>{initial}</p>
+        <small data-card-detail>请稍候</small>
+        <a data-card-link hidden target="_blank" rel="noopener noreferrer">查看详情</a>
+      </article>
+    ))}
+  </div>
+</section>
+
+<style>
+  .home-status { min-width: 0; }
+  .home-status-grid { grid-template-columns: 1fr; }
+  .home-status .system-status-heading h2 { font-size: 1rem; }
+  .home-status .status-refresh { min-height: 1.85rem; padding: .32rem .5rem; font-size: .7rem; }
+</style>
+
+<script src="../../scripts/public-status"></script>

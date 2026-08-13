@@ -10,8 +10,12 @@ const STORAGE = 'blog-sidebar-collapsed';
 const mobileViewport = window.matchMedia('(max-width: 760px)');
 
 function syncCollapse() {
+  if (mobileViewport.matches) {
+    document.documentElement.classList.add('sidebar-collapsed');
+    return;
+  }
   const stored = localStorage.getItem(STORAGE);
-  const collapsed = stored === null ? mobileViewport.matches : stored === 'true';
+  const collapsed = stored === 'true';
   if (collapsed) {
     document.documentElement.classList.add('sidebar-collapsed');
   } else {

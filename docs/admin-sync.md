@@ -10,6 +10,7 @@
 ```text
 GET /health      → Worker 与 KV 基础状态（不要求登录）
 GET /api/status  → GitHub 账号、仓库 main HEAD、最近一次 Pages Actions（要求登录）
+GET /api/public-status → 首页公共仓库与部署状态（不要求登录）
 ```
 ```
 
@@ -20,6 +21,7 @@ GET /api/status  → GitHub 账号、仓库 main HEAD、最近一次 Pages Actio
 - 前端不再保存 bearer session，也不会处理 `admin_token` URL 参数。
 - `/auth/me` 返回短期 CSRF token；前端只在当前页面内存保存该 token。
 - `/health` 和 `/api/status` 都要求精确的博客 Origin；状态响应不返回 OAuth token、Secret、CSRF token 或内部错误堆栈。
+- `/api/public-status` 同样要求精确 Origin，但不读取管理员 Cookie；结果在 KV 中缓存 90 秒，上游失败时只以 `stale: true` 返回已有旧缓存。
 - `/api/status` 是只读接口，不要求 CSRF token；`/api/sync` 与 `/api/delete` 等写接口仍必须校验 CSRF。
 - `/api/sync` 必须带本站 Origin、有效 HttpOnly Cookie 和 `X-CSRF-Token`。
 - Worker 只允许 GitHub 用户 `ice11123`，目标仓库为 `ice11123/blog_test1` 的 `main` 分支。

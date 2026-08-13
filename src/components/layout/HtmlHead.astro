@@ -7,6 +7,7 @@ import sidebarSharedCss from '../../styles/sidebar-shared.scss?url';
 import sidebarTocCss from '../../styles/sidebar-toc.scss?url';
 import blogPostCss from '../../styles/blog-post.scss?url';
 import sidebarTreeCss from '../../styles/sidebar-tree.scss?url';
+import systemStatusCss from '../../styles/system-status.scss?url';
 import katexCss from 'katex/dist/katex.min.css?url';
 import { withBase } from '../../lib/urls';
 
@@ -54,6 +55,7 @@ if (image) {
 	<link rel="stylesheet" href={sidebarTocCss}>
 	<link rel="stylesheet" href={blogPostCss}>
 	<link rel="stylesheet" href={sidebarTreeCss}>
+	<link rel="stylesheet" href={systemStatusCss}>
 
 <!-- Primary Meta Tags -->
 <title>{title}</title>
@@ -97,10 +99,10 @@ if (image) {
     } catch (_) {}
 
     try {
-      var rightRaw = localStorage.getItem('blog-sidebar-collapsed');
       var isMobileViewport = window.matchMedia('(max-width: 760px)').matches;
-      // 未保存偏好时：桌面端默认展开，移动端默认收起，避免目录抽屉遮挡正文。
-      if (rightRaw === 'false' || (rightRaw === null && !isMobileViewport)) {
+      var rightRaw = localStorage.getItem('blog-sidebar-collapsed');
+      // 移动端始终从收起状态进入，避免桌面端展开偏好把目录抽屉盖在正文上。
+      if (!isMobileViewport && (rightRaw === 'false' || rightRaw === null)) {
         document.documentElement.classList.remove('sidebar-collapsed');
       }
     } catch (_) {}

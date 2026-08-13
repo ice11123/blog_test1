@@ -1,0 +1,60 @@
+---
+import Icon from './Icon.astro';
+---
+
+<div class="header-tools" aria-label="站点工具">
+  <button id="search-trigger-btn" class="header-tool-button header-search-button" aria-label="搜索文章 (Ctrl+K)" title="搜索 (Ctrl+K)" type="button">
+    <Icon name="search" />
+    <span>搜索</span>
+    <span class="header-search-shortcut">Ctrl+K</span>
+  </button>
+  <div class="header-theme-wrap">
+    <button id="theme-switcher-btn" class="header-tool-button" aria-label="切换主题" title="切换配色方案" type="button">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="5"></circle>
+        <line x1="12" y1="1" x2="12" y2="3"></line>
+        <line x1="12" y1="21" x2="12" y2="23"></line>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+        <line x1="1" y1="12" x2="3" y2="12"></line>
+        <line x1="21" y1="12" x2="23" y2="12"></line>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+      </svg>
+      <span>主题</span>
+    </button>
+    <div id="theme-dropdown" class="header-theme-dropdown" hidden>
+      <div data-theme="dark-blue"><span class="theme-dot" style="background:#4a65e8"></span>深蓝</div>
+      <div data-theme="dark-green"><span class="theme-dot" style="background:#10b981"></span>深绿</div>
+      <div data-theme="dark-purple"><span class="theme-dot" style="background:#8b5cf6"></span>深紫</div>
+      <div data-theme="light-blue"><span class="theme-dot" style="background:#4565d8"></span>亮蓝</div>
+      <div data-theme="light-green"><span class="theme-dot" style="background:#2e9a6a"></span>亮绿</div>
+      <div data-theme="light-rose"><span class="theme-dot" style="background:#d1476e"></span>亮玫瑰</div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .header-tools { display: grid; grid-template-columns: minmax(9.5rem, 1.65fr) minmax(5.8rem, 1fr); gap: .4rem; min-width: 0; }
+  .header-tool-button { display: flex; align-items: center; justify-content: center; gap: .4rem; min-height: 2rem; padding: .38rem .55rem; color: var(--foreground-dark); background: transparent; border: 1px solid var(--border); border-radius: var(--radius-lg); font: inherit; font-size: var(--font-size-sm); white-space: nowrap; cursor: pointer; transition: color var(--transition-base), border-color var(--transition-base), background var(--transition-base); }
+  .header-tool-button:hover { color: var(--foreground); border-color: var(--accent); background: rgba(var(--accent-rgb), var(--alpha-hover)); }
+  .header-search-shortcut { color: var(--foreground-dark); font-size: .62rem; opacity: .72; }
+  .header-theme-wrap { position: relative; display: flex; min-width: 0; }
+  .header-theme-wrap .header-tool-button { width: 100%; }
+  .header-theme-dropdown { position: absolute; z-index: var(--z-dropdown); top: calc(100% + 5px); right: 0; min-width: 130px; padding: 6px; color: var(--foreground); background: rgba(var(--background-rgb), var(--alpha-dropdown-glass)); backdrop-filter: blur(20px); border: 1px solid var(--border-light); border-radius: var(--radius-xl); box-shadow: 0 8px 32px rgba(0, 0, 0, .18); }
+  .header-theme-dropdown > div { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: var(--radius-md); font-size: var(--font-size-md); white-space: nowrap; cursor: pointer; }
+  .header-theme-dropdown > div:hover, .header-theme-dropdown > div.current { background: var(--muted); }
+  .header-theme-dropdown > div.current { font-weight: 600; }
+  .theme-dot { width: 10px; height: 10px; flex: 0 0 auto; border-radius: 50%; }
+  @media (max-width: 1099px) and (min-width: 769px) {
+    .header-tools { grid-template-columns: 2.25rem 2.25rem; }
+    .header-tool-button { padding: .35rem; }
+    .header-tool-button > span { display: none; }
+  }
+  @media (max-width: 768px) {
+    .header-tools { width: min(100%, 21rem); grid-template-columns: minmax(0, 1.65fr) minmax(5.6rem, 1fr); }
+    .header-search-shortcut { display: none; }
+  }
+</style>
+
+<script src="../../scripts/theme"></script>

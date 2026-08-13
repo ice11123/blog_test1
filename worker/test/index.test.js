@@ -67,6 +67,78 @@ test('health 拒绝非法 Origin，KV 不可用时返回安全的 503', async ()
   assert.deepEqual(Object.keys(await broken.json()).sort(), ['checkedAt', 'ok']);
 });
 
+test('public status 无需管理员 Cookie 且返回脱敏仓库和部署状态', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const target = String(url);
+    if (target.includes('/git/ref/heads/main')) return Response.json({ object: { sha: 'abcdef0123456789' } });
+    if (target.includes('/actions/workflows/deploy.yml/runs')) return Response.json({ workflow_runs: [{ status: 'completed', conclusion: 'success', updated_at: '2026-08-13T12:00:00Z', html_url: 'https://github.com/ice11123/blog_test1/actions/runs/2' }] });
+    return new Response('not found', { status: 404 });
+  };
+  try {
+    const cache = new Map();
+    const publicEnv = { ...env, SESSIONS: { get: async (key) => cache.get(key) || null, put: async (key, value) => cache.set(key, value) } };
+    const response = await worker.fetch(new Request('https://worker.test/api/public-status', { headers: { Origin: env.ALLOWED_ORIGIN } }), publicEnv);
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.ok, true);
+    assert.equal(body.repository.headSha, 'abcdef0123456789');
+    assert.equal(body.deployment.status, 'success');
+    assert.doesNotMatch(JSON.stringify(body), /token|secret|csrf|login/i);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('public status 拒绝非法 Origin', async () => {
+  const response = await worker.fetch(new Request('https://worker.test/api/public-status', { headers: { Origin: 'https://evil.example' } }), env);
+  assert.equal(response.status, 403);
+});
+
+test('public status 在 90 秒内命中缓存且不重复请求 GitHub', async () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async (url) => {
+    calls += 1;
+    const target = String(url);
+    if (target.includes('/git/ref/heads/main')) return Response.json({ object: { sha: 'cache-head' } });
+    return Response.json({ workflow_runs: [] });
+  };
+  try {
+    const cache = new Map();
+    const publicEnv = { ...env, SESSIONS: { get: async (key) => cache.get(key) || null, put: async (key, value) => cache.set(key, value) } };
+    const request = () => worker.fetch(new Request('https://worker.test/api/public-status', { headers: { Origin: env.ALLOWED_ORIGIN } }), publicEnv);
+    assert.equal((await request()).status, 200);
+    assert.equal((await request()).status, 200);
+    assert.equal(calls, 2);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('public status 上游失败时回退旧缓存并标记 stale', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response('failed', { status: 500 });
+  try {
+    const old = { ok: true, checkedAt: '2026-08-13T10:00:00Z', stale: false, worker: { ok: true }, repository: { ok: true, owner: 'ice11123', name: 'blog_test1', branch: 'main', headSha: 'old-head', commitUrl: 'https://github.com/commit' }, deployment: { status: 'pending', updatedAt: null, url: null } };
+    const publicEnv = { ...env, SESSIONS: { get: async () => JSON.stringify(old), put: async () => {} } };
+    const response = await worker.fetch(new Request('https://worker.test/api/public-status', { headers: { Origin: env.ALLOWED_ORIGIN } }), publicEnv);
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.stale, true);
+    assert.equal(body.repository.headSha, 'old-head');
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('public status 无缓存且上游失败时返回安全的 503', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response('private upstream detail', { status: 500 });
+  try {
+    const publicEnv = { ...env, SESSIONS: { get: async () => null, put: async () => {} } };
+    const response = await worker.fetch(new Request('https://worker.test/api/public-status', { headers: { Origin: env.ALLOWED_ORIGIN } }), publicEnv);
+    assert.equal(response.status, 503);
+    const body = await response.json();
+    assert.equal(body.ok, false);
+    assert.doesNotMatch(JSON.stringify(body), /private upstream detail|token|secret|login|csrf/i);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
 test('api/status 未登录返回 401', async () => {
   const response = await worker.fetch(new Request('https://worker.test/api/status', { headers: { Origin: env.ALLOWED_ORIGIN } }), env);
   assert.equal(response.status, 401);

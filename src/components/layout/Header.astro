@@ -2,6 +2,7 @@
 import { ADMIN_PASSWORD_HASH, ADMIN_UNLOCK_STORAGE_KEY, SITE_TITLE } from '../../consts';
 import HeaderLink from '../ui/HeaderLink.astro';
 import SocialLinks from '../ui/SocialLinks.astro';
+import HeaderTools from '../ui/HeaderTools.astro';
 import { withBase } from '../../lib/urls';
 ---
 
@@ -10,6 +11,7 @@ import { withBase } from '../../lib/urls';
     <div class="nav-left">
       <h2><HeaderLink id="site-title-link" href={withBase('/')} data-admin-url={withBase('/admin/')} aria-label={`${SITE_TITLE}，连续点击 5 次打开管理入口`} title="连续点击 5 次打开管理入口">{SITE_TITLE}</HeaderLink></h2>
     </div>
+    <div class="nav-tools"><HeaderTools /></div>
     <div class="nav-center">
       <HeaderLink href={withBase('/')}>主页</HeaderLink>
       <HeaderLink href={withBase('/blog/')}>博客</HeaderLink>
@@ -75,12 +77,15 @@ import { withBase } from '../../lib/urls';
   }
 
   .nav-left,
-  .nav-right {
+  .nav-right,
+  .nav-tools {
     display: flex;
     align-items: center;
     flex: 0 0 auto;
     min-width: 0;
   }
+
+  .nav-tools { margin-right: auto; }
 
   .nav-right {
     gap: 0.75rem;
@@ -198,6 +203,7 @@ import { withBase } from '../../lib/urls';
       grid-template-columns: minmax(0, 1fr) auto;
       grid-template-areas:
         "brand social"
+        "tools tools"
         "links links";
       gap: 0.35rem 0.5rem;
     }
@@ -206,6 +212,8 @@ import { withBase } from '../../lib/urls';
       grid-area: brand;
       overflow: hidden;
     }
+
+    .nav-tools { grid-area: tools; justify-self: start; width: 100%; margin-right: 0; }
 
     .nav-left :global(a) {
       padding-inline: 0;
