@@ -1,5 +1,12 @@
 # 现状与排查结论
 
+## 2026-08-14｜首页状态与公告栏布局复核
+
+- `src/components/home/PublicStatus.astro` 的 `.home-status-grid { grid-template-columns: 1fr; }` 覆盖了 `system-status.scss` 的公共两列设置，是状态卡纵向排列的直接根因。
+- 1680×1050 下正文内容区可用宽度约 1093px，但 `.prose` 的 1em 内边距使 `.home-width-container` 只有约 1057px；直接增大右栏会压缩主内容。将宽屏 `.home-page` 设置为 `width: calc(100% + 2em); margin-left: -1em` 后，能够保持主内容 760px 并容纳 320px 信息栏。
+- 1680×1050 实测状态/公告外框均为 x=1082.8、w=320；1920×1080 信息栏 w=380；1280×800 信息区下移，状态网格 w=639 且为两列；390×844 状态网格回落单列，文档无横向溢出。
+- 现有状态数据链路未改动；本轮只调整首页布局与组件局部样式，Worker、缓存和 GitHub 降级逻辑保持不变。
+
 - 当前提交为 `8d95aba`，工作区初始干净。
 - 管理台 `src/scripts/admin-dashboard.ts` 使用 `marked`，会把公式、Mermaid 和所有大写 MDX 组件替换成占位文字；这是实时预览错误的根因。
 - 正式站点使用 `remark-math`、`rehype-katex`、`remarkMermaid`、GitHub alerts 和 expressive-code。
