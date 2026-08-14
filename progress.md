@@ -64,3 +64,10 @@
 - 首页将 Worker `/health` 与 `/api/public-status` 分开检测；Worker 不可直连时显示黄色“当前网络无法直连 Worker”，仓库和 Pages 继续使用 GitHub 直连降级。
 - 本地浏览器实际验证通过：管理台前端绿色，Worker 黄色，仓库与 Pages 黄色且显示 `ice11123/blog_test1`、HEAD 短 SHA 和部署记录；重复检测按钮在请求期间禁用。
 - 质量门禁通过：`pnpm run check`、`pnpm run build`、`pnpm --dir worker test`（25/25）、`node --check worker/src/index.js`、`git diff --check`。
+
+## 2026-08-14｜首页状态刷新提速
+
+- 对比确认管理台 `/api/status` 使用 OAuth 直读 GitHub，首页 `/api/public-status` 使用匿名 KV 缓存；二者此前仅共享视觉组件，并非同一数据链路。
+- 新增 stale 缓存和慢响应回归测试：旧缓存必须继续刷新 GitHub，Worker 超过 900ms 未响应时提前启动 GitHub 降级。
+- 将 Worker 健康检查与仓库/Pages 检查解耦，卡片分别在各自请求完成时更新，不再互相阻塞。
+- 本地浏览器计时验证：页面约 637ms 完成初始化，约 1477ms 显示最新仓库提交 `0558f25`；截图确认仓库和 Pages 不再停留于 `01fbfd1` 旧缓存。

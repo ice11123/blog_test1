@@ -10,7 +10,35 @@ export type StatusRequestResult =
   | { kind: 'http-error'; status: number; body: any; attempts: number }
   | { kind: 'network-error'; reason: 'timeout' | 'network'; attempts: number };
 
+export type StatusWaitResult =
+  | { kind: 'resolved'; result: StatusRequestResult }
+  | { kind: 'slow' };
+
 const DEFAULT_RETRY_DELAYS_MS = [450, 1_100];
+
+export function shouldRefreshFromGitHub(result: StatusRequestResult): boolean {
+  return result.kind !== 'ok' || result.body?.ok !== true || result.body?.stale === true;
+}
+
+export function waitForStatusResult(
+  request: Promise<StatusRequestResult>,
+  delayMs: number,
+): Promise<StatusWaitResult> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      settled = true;
+      resolve({ kind: 'slow' });
+    }, Math.max(0, delayMs));
+
+    request.then((result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve({ kind: 'resolved', result });
+    });
+  });
+}
 
 export async function requestStatusJson(url: string, options: StatusRequestOptions = {}): Promise<StatusRequestResult> {
   const attempts = Math.max(1, options.attempts ?? 3);

@@ -37,3 +37,6 @@
 - 2026-08-14 复核发现 `workers.dev` DNS/链路不可达：本机解析曾返回异常地址 `157.240.17.35`，连续请求约 8 秒 TCP 超时；GitHub 公共 API 可正常读取，因此没有证据表明 Worker、KV 或仓库服务端故障。
 - 原首页把 Worker 网络/DNS 异常统一显示为红色“Worker 无法连接”，将网络不可达和服务故障混为一谈。本轮新增 `requestStatusJson()`，分开检测 `/health` 与 `/api/public-status`，网络/超时自动重试 3 次，网络不可达改为黄色等待态，明确 HTTP 4xx/5xx 才标为红色。
 - Worker 状态失败时继续读取 GitHub 公共 API；仓库和 Pages 卡片标记“GitHub 直连降级”，不再因 Worker 链路受限而误报服务故障。
+- 首页与管理台此前只复用了状态卡片样式，没有复用数据链路：管理台解锁后通过 OAuth 会话调用 `/api/status`，首页匿名调用带 KV 缓存的 `/api/public-status`。截图中的 `01fbfd1 · 数据暂未刷新` 证明首页收到 `stale: true` 后错误地将旧缓存作为最终结果。
+- 首页原实现用 `Promise.all` 同时等待 `/health` 和 `/api/public-status`，导致快速健康检查也被较慢的仓库状态请求拖住；Worker 不可达时还要等三轮超时才开始 GitHub 降级。
+- 修复后健康检查和仓库检查独立更新；仓库请求超过 900ms 或返回 stale/错误时立即启用 GitHub 公共 API。浏览器实测最新仓库 SHA 从页面加载到显示约 1477ms，不再停留于旧缓存。

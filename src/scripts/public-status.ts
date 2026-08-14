@@ -1,8 +1,14 @@
-import { requestStatusJson, type StatusRequestResult } from '../lib/publicStatusRequest';
+import {
+  requestStatusJson,
+  shouldRefreshFromGitHub,
+  waitForStatusResult,
+  type StatusRequestResult,
+} from '../lib/publicStatusRequest';
 
 const REQUEST_TIMEOUT_MS = 15_000;
 const WORKER_TIMEOUT_MS = 4_500;
 const WORKER_ATTEMPTS = 3;
+const PUBLIC_STATUS_HEDGE_DELAY_MS = 900;
 const GITHUB_API = 'https://api.github.com';
 const REPOSITORY = 'ice11123/blog_test1';
 const BRANCH = 'main';
@@ -37,7 +43,7 @@ function initPublicStatus(): void {
     return Number.isNaN(date.valueOf()) ? '暂无更新时间' : date.toLocaleString('zh-CN', { hour12: false });
   };
 
-  const refreshFromGitHub = async () => {
+  const refreshFromGitHub = async (): Promise<boolean> => {
     try {
       const [refResponse, runsResponse] = await Promise.all([
         fetch(`${GITHUB_API}/repos/${REPOSITORY}/git/ref/heads/${BRANCH}`, {
@@ -57,21 +63,23 @@ function initPublicStatus(): void {
 
       if (!runsResponse.ok) {
         setCard('deployment', 'waiting', 'Worker 不可用，部署状态待刷新', '仓库 HEAD 已通过 GitHub 直连读取');
-        return;
+        return true;
       }
       const runs = await runsResponse.json();
       const run = Array.isArray(runs?.workflow_runs) ? runs.workflow_runs[0] : null;
       if (!run) {
         setCard('deployment', 'waiting', '暂无部署记录', 'GitHub 直连降级');
-        return;
+        return true;
       }
       const status = run.status !== 'completed' ? 'pending' : run.conclusion === 'success' ? 'success' : 'failure';
       if (status === 'success') setCard('deployment', 'waiting', '最近部署成功', `${formatTime(run.updated_at)} · GitHub 直连降级`, run.html_url || '');
       else if (status === 'pending') setCard('deployment', 'waiting', '正在构建或排队', `${formatTime(run.updated_at)} · GitHub 直连降级`, run.html_url || '');
       else setCard('deployment', 'error', '最近部署失败', formatTime(run.updated_at), run.html_url || '');
+      return true;
     } catch {
       setCard('repository', 'error', '仓库状态不可用', 'Worker 与 GitHub 公共 API 均无法连接');
       setCard('deployment', 'error', '部署状态不可用', 'Worker 与 GitHub 公共 API 均无法连接');
+      return false;
     }
   };
 
@@ -110,6 +118,33 @@ function initPublicStatus(): void {
     return true;
   };
 
+  const refreshRepositoryStatus = async () => {
+    const publicRequest = requestStatusJson(`${endpoint}/api/public-status`, {
+      attempts: WORKER_ATTEMPTS,
+      timeoutMs: WORKER_TIMEOUT_MS,
+    });
+    const earlyResult = await waitForStatusResult(publicRequest, PUBLIC_STATUS_HEDGE_DELAY_MS);
+
+    if (earlyResult.kind === 'resolved') {
+      const rendered = renderRepositoryStatus(earlyResult.result);
+      if (!shouldRefreshFromGitHub(earlyResult.result)) return;
+      if (!rendered) {
+        setCard('repository', 'checking', '正在尝试 GitHub 直连', 'Worker 状态不可用，启用公共只读降级');
+        setCard('deployment', 'checking', '正在尝试 GitHub 直连', 'Worker 状态不可用，启用公共只读降级');
+      }
+      await refreshFromGitHub();
+      return;
+    }
+
+    setCard('repository', 'checking', '正在尝试 GitHub 直连', 'Worker 响应较慢，提前启用公共只读降级');
+    setCard('deployment', 'checking', '正在尝试 GitHub 直连', 'Worker 响应较慢，提前启用公共只读降级');
+    const githubOk = await refreshFromGitHub();
+    if (githubOk) return;
+
+    // GitHub 直连也失败时，仍等待 Worker 的最终结果，避免丢失可用缓存。
+    renderRepositoryStatus(await publicRequest);
+  };
+
   const refresh = async () => {
     setCard('frontend', 'ok', '首页脚本已初始化', '公开状态模块工作正常');
     if (!endpoint) {
@@ -120,16 +155,11 @@ function initPublicStatus(): void {
       return;
     }
     ['worker', 'repository', 'deployment'].forEach((key) => setCard(key, 'checking', '正在检测', '请稍候'));
-    const [healthResult, publicResult] = await Promise.all([
-      requestStatusJson(`${endpoint}/health`, { attempts: WORKER_ATTEMPTS, timeoutMs: WORKER_TIMEOUT_MS }),
-      requestStatusJson(`${endpoint}/api/public-status`, { attempts: WORKER_ATTEMPTS, timeoutMs: WORKER_TIMEOUT_MS }),
-    ]);
-    setWorkerStatus(healthResult);
-    if (!renderRepositoryStatus(publicResult)) {
-      setCard('repository', 'checking', '正在尝试 GitHub 直连', 'Worker 不可用，启用公共只读降级');
-      setCard('deployment', 'checking', '正在尝试 GitHub 直连', 'Worker 不可用，启用公共只读降级');
-      await refreshFromGitHub();
-    }
+    const healthTask = requestStatusJson(`${endpoint}/health`, {
+      attempts: WORKER_ATTEMPTS,
+      timeoutMs: WORKER_TIMEOUT_MS,
+    }).then(setWorkerStatus);
+    await Promise.all([healthTask, refreshRepositoryStatus()]);
   };
 
   const refreshButton = root.querySelector<HTMLButtonElement>('[data-public-status-refresh]');

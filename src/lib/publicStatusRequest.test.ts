@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { requestStatusJson } from './publicStatusRequest.ts';
+import {
+  requestStatusJson,
+  shouldRefreshFromGitHub,
+  waitForStatusResult,
+} from './publicStatusRequest.ts';
 
 test('短暂网络失败会重试并恢复成功', async () => {
   let calls = 0;
@@ -68,4 +72,40 @@ test('服务端 503 会重试，最终仍失败时保留 HTTP 状态', async () 
   assert.equal(result.status, 503);
   assert.equal(result.attempts, 2);
   assert.equal(calls, 2);
+});
+
+test('Worker 返回旧缓存时继续刷新 GitHub，而新鲜缓存直接采用', () => {
+  assert.equal(shouldRefreshFromGitHub({
+    kind: 'ok',
+    status: 200,
+    body: { ok: true, stale: true },
+    attempts: 1,
+  }), true);
+  assert.equal(shouldRefreshFromGitHub({
+    kind: 'ok',
+    status: 200,
+    body: { ok: true, stale: false },
+    attempts: 1,
+  }), false);
+  assert.equal(shouldRefreshFromGitHub({
+    kind: 'network-error',
+    reason: 'timeout',
+    attempts: 3,
+  }), true);
+});
+
+test('Worker 状态请求过慢时提前触发 GitHub 降级', async () => {
+  const slowRequest = new Promise<never>(() => {});
+  assert.deepEqual(await waitForStatusResult(slowRequest, 5), { kind: 'slow' });
+
+  const immediate = {
+    kind: 'ok' as const,
+    status: 200,
+    body: { ok: true, stale: false },
+    attempts: 1,
+  };
+  assert.deepEqual(await waitForStatusResult(Promise.resolve(immediate), 50), {
+    kind: 'resolved',
+    result: immediate,
+  });
 });
