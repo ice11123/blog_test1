@@ -15,7 +15,7 @@ function flush() {
   ticking = false;
 }
 
-document.addEventListener('astro:page-load', () => {
+function setupObserver() {
   if (observer) {
     observer.disconnect();
     pendingAdd = [];
@@ -46,6 +46,14 @@ document.addEventListener('astro:page-load', () => {
   );
 
   fadeElements.forEach((el) => observer!.observe(el));
-});
+}
+
+// 完整刷新时不一定会触发 astro:page-load；立即初始化可避免首屏元素永久保持 opacity: 0。
+document.addEventListener('astro:page-load', setupObserver);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupObserver, { once: true });
+} else {
+  setupObserver();
+}
 
 }

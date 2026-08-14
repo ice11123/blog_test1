@@ -42,6 +42,28 @@ const cards = [
 
   .home-status { width: 100%; }
   .home-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home-status .system-card header { align-items: flex-start; }
+  .home-status .system-card header strong {
+    overflow: visible;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+  .home-status .system-card header [data-card-state] {
+    flex: 0 0 auto;
+    max-width: 3.2em;
+    line-height: 1.25;
+    text-align: right;
+    white-space: normal;
+  }
+  .home-status .system-card p,
+  .home-status .system-card small {
+    overflow: visible;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    white-space: normal;
+    text-overflow: clip;
+  }
   .home-status .system-status-heading h2 { font-size: 1rem; }
   .home-status .status-refresh { min-height: 1.85rem; padding: .32rem .5rem; font-size: .7rem; }
 

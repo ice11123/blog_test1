@@ -179,13 +179,23 @@
       height: 80vh;
       max-height: 100vh;
       z-index: var(--z-right-sidebar-mobile);
-      transform: translateX(0);
+      // 移动端首屏默认收起；点击边缘按钮后由 mobile-sidebar-open 临时展开。
+      transform: translateX(calc(100% + 2vw));
+      visibility: hidden;
       background: rgba(var(--background-rgb), var(--alpha-sidebar-glass));
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       border-radius: var(--radius-2xl) 0 0 var(--radius-2xl);
       box-shadow: -4px 0 24px rgba(0, 0, 0, 0.2);
     }
+
+    html.mobile-sidebar-open .right-sidebar {
+      transform: translateX(0);
+      visibility: visible;
+    }
+
+    .gutter-arrow-right { transform: rotate(90deg); }
+    html.mobile-sidebar-open .gutter-arrow-right { transform: rotate(-90deg); }
 
     .sidebar-inner {
       width: 100%;

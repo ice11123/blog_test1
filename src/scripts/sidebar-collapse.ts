@@ -11,9 +11,12 @@ const mobileViewport = window.matchMedia('(max-width: 760px)');
 
 function syncCollapse() {
   if (mobileViewport.matches) {
-    document.documentElement.classList.add('sidebar-collapsed');
+    // 移动端由 CSS 默认收起，使用独立类控制临时展开，避免首页首屏继承桌面展开状态。
+    document.documentElement.classList.remove('sidebar-collapsed');
+    document.documentElement.classList.remove('mobile-sidebar-open');
     return;
   }
+  document.documentElement.classList.remove('mobile-sidebar-open');
   const stored = localStorage.getItem(STORAGE);
   const collapsed = stored === 'true';
   if (collapsed) {
@@ -28,6 +31,10 @@ function initCollapse() {
   if (!btn) return;
 
   function toggle() {
+    if (mobileViewport.matches) {
+      document.documentElement.classList.toggle('mobile-sidebar-open');
+      return;
+    }
     document.documentElement.classList.toggle('sidebar-collapsed');
     const nowCollapsed = document.documentElement.classList.contains('sidebar-collapsed');
     localStorage.setItem(STORAGE, String(nowCollapsed));
