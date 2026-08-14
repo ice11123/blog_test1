@@ -60,8 +60,17 @@ const maintenanceEntries = await parseMaintenance(maintenanceSource);
       <a class="recent-more" href={withBase('/blog/')}>查看全部文章 →</a>
     </section>
 
-    <section class="home-panel home-module home-repo-languages"><GitHubRepoStats languages={repoLanguages} totalLines={totalRepoLines} /></section>
-    <section class="home-panel home-module home-github-languages"><GitHubLanguages /></section>
+    <section class="home-panel home-module language-overview-panel">
+      <div class="language-overview-heading">
+        <p class="status-eyebrow">LANGUAGE OVERVIEW</p>
+        <h2>代码语言构成</h2>
+        <span>本站仓库与 GitHub 账户的语言统计</span>
+      </div>
+      <div class="language-overview-grid">
+        <div class="language-overview-item"><GitHubRepoStats languages={repoLanguages} totalLines={totalRepoLines} /></div>
+        <div class="language-overview-item"><GitHubLanguages /></div>
+      </div>
+    </section>
 
     <section class="home-info-panel home-status-panel" aria-label="站点系统状态"><PublicStatus /></section>
 
@@ -69,6 +78,7 @@ const maintenanceEntries = await parseMaintenance(maintenanceSource);
       <div class="maintenance-heading">
         <p class="status-eyebrow">MAINTENANCE LOG</p>
         <h2>近期博客维护公告</h2>
+        <span>记录近期功能调整、问题修复与部署状态</span>
       </div>
       <div class="maintenance-scroll">
         {maintenanceEntries.map((entry, index) => (
@@ -87,7 +97,7 @@ const maintenanceEntries = await parseMaintenance(maintenanceSource);
 
 <style>
   .home-width-container { width: 100%; min-width: 0; container-type: inline-size; }
-  .home-page { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "overview" "recent" "repo" "github" "status" "maintenance" "contribution"; align-items: stretch; gap: .9rem; box-sizing: border-box; width: 100%; max-width: none; margin: 0 auto; padding: 1.25rem 1rem 2rem; text-align: center; }
+  .home-page { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "overview" "recent" "languages" "status" "maintenance" "contribution"; align-items: stretch; gap: .9rem; box-sizing: border-box; width: 100%; max-width: none; margin: 0 auto; padding: 1.25rem 1rem 2rem; text-align: center; }
   .home-page > * { min-width: 0; }
   .home-overview-card { grid-area: overview; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.15rem; text-align: center; }
   .welcome { width: 100%; margin-bottom: .85rem; text-align: center; }
@@ -104,8 +114,20 @@ const maintenanceEntries = await parseMaintenance(maintenanceSource);
   .home-panel, .home-info-panel { overflow: hidden; background: color-mix(in srgb, var(--muted) 28%, transparent); border: 1px solid var(--border); border-radius: var(--radius-2xl); }
   .home-module { display: flex; flex-direction: column; }
   .home-module > :global(*) { flex: 1 1 auto; }
-  .home-repo-languages { grid-area: repo; }
-  .home-github-languages { grid-area: github; }
+  .language-overview-panel { grid-area: languages; min-height: 340px; padding: 1.1rem 1.2rem 1.2rem; }
+  .language-overview-heading { margin-bottom: .3rem; text-align: center; }
+  .language-overview-heading h2 { margin: .15rem 0 .2rem; color: var(--foreground-light); font-size: 1.12rem; }
+  .language-overview-heading span { color: var(--foreground-dark); font-size: .7rem; }
+  .language-overview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; min-width: 0; }
+  .language-overview-item { min-width: 0; }
+  .language-overview-item > :global(*) { height: 100%; }
+  .language-overview-item :global(.lang-card) { padding: .8rem .65rem; }
+  .language-overview-item :global(.lang-title) { margin-bottom: .65rem; color: var(--foreground); font-size: .82rem; font-weight: 650; }
+  .language-overview-item + .language-overview-item { border-left: 1px solid color-mix(in srgb, var(--accent) 32%, var(--border)); }
+  .language-overview-item :global(.lang-chart-row) { gap: .65rem; }
+  .language-overview-item :global(.lang-pie) { width: 126px; height: 126px; }
+  .language-overview-item :global(.lang-legend) { gap: .16rem; font-size: .68rem; }
+  .language-overview-item :global(.lang-total) { margin-top: .45rem; font-size: .68rem; }
   .home-page :global(.lang-card), .home-page :global(.gh-contributions) { width: 100%; max-width: none; margin: 0; background: transparent; border: 0; border-radius: 0; }
   .home-page :global(.lang-card), .home-page :global(.gh-contributions) { display: flex; flex-direction: column; justify-content: center; }
   .home-page :global(.lang-card) { padding: 1rem; }
@@ -131,48 +153,65 @@ const maintenanceEntries = await parseMaintenance(maintenanceSource);
   .recent-more:hover { text-decoration: underline; }
 
   .home-info-panel { width: 100%; min-width: 0; box-sizing: border-box; padding: 1rem; }
-  .home-status-panel { grid-area: status; }
+  .home-status-panel { grid-area: status; padding: 1.15rem; }
   .maintenance-panel { grid-area: maintenance; display: flex; flex-direction: column; min-height: 0; }
   .maintenance-heading { margin-bottom: .7rem; }
-  .maintenance-heading h2 { margin: .15rem 0 0; font-size: 1rem; }
-  .maintenance-scroll { display: grid; grid-auto-rows: max-content; align-content: start; flex: 1 1 auto; gap: .5rem; min-height: 0; max-height: 20rem; padding-right: .2rem; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; }
+  .maintenance-heading h2 { margin: .15rem 0 0; font-size: 1.18rem; }
+  .maintenance-heading span { color: var(--foreground-dark); font-size: .7rem; }
+  .maintenance-scroll { display: grid; grid-auto-rows: max-content; align-content: start; flex: 1 1 auto; gap: .6rem; min-height: 0; max-height: 24rem; padding-right: .2rem; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; }
   .maintenance-entry { overflow: hidden; padding: 0; margin: 0; background: color-mix(in srgb, var(--background) 42%, transparent); border: 1px solid var(--border); border-radius: var(--radius-lg); }
   .maintenance-entry[open] { border-color: color-mix(in srgb, var(--accent) 60%, var(--border)); }
-  .maintenance-entry summary { position: relative; display: grid; gap: .18rem; padding: .65rem .72rem .65rem 1.05rem; margin: 0; color: var(--foreground); cursor: pointer; list-style: none; }
+  .maintenance-entry summary { position: relative; display: grid; gap: .22rem; padding: .72rem .8rem .72rem 1.1rem; margin: 0; color: var(--foreground); cursor: pointer; list-style: none; }
   .maintenance-entry[open] > summary { margin-bottom: 0; }
   .maintenance-entry summary::-webkit-details-marker { display: none; }
   .maintenance-entry summary::before { content: '›'; position: absolute; left: .45rem; top: .72rem; color: var(--accent); transform: rotate(0deg); transition: transform var(--transition-base); }
   .maintenance-entry[open] summary::before { transform: rotate(90deg); }
-  .maintenance-entry summary time { color: var(--accent); font-size: .66rem; font-weight: 650; }
-  .maintenance-entry summary span { padding-left: .35rem; font-size: .78rem; font-weight: 650; line-height: 1.45; }
-  .maintenance-body { padding: 0 .8rem .75rem; color: var(--foreground-dark); font-size: .72rem; line-height: 1.65; }
+  .maintenance-entry summary time { color: var(--accent); font-size: .7rem; font-weight: 650; }
+  .maintenance-entry summary span { padding-left: .35rem; font-size: .84rem; font-weight: 650; line-height: 1.45; }
+  .maintenance-body { padding: 0 .9rem .85rem; color: var(--foreground-dark); font-size: .76rem; line-height: 1.65; }
   .maintenance-body :global(p), .maintenance-body :global(ul) { margin: .45rem 0 0; }
   .maintenance-body :global(ul) { padding-left: 1.2rem; }
-  .contribution-panel { grid-area: contribution; padding: .85rem 1rem; }
+  .contribution-panel { grid-area: contribution; min-height: 280px; padding: 1.1rem 1.2rem 1rem; }
+  .contribution-panel :global(.gh-contributions) { width: 100%; max-width: none; margin: 0; }
+  .contribution-panel :global(.gh-contributions > .stat-label) { margin-bottom: .8rem !important; color: var(--foreground); font-size: 1.08rem; font-weight: 650; line-height: 1.4; }
+  .contribution-panel :global(.gh-grid-wrapper) { width: 100%; max-width: none; box-sizing: border-box; padding: 1rem 1.1rem .85rem; }
+  .contribution-panel :global(.gh-grid-outer) { justify-content: center; }
+  .contribution-panel :global(.gh-scroll-area) { justify-content: center; }
 
   @container (min-width: 680px) {
-    .home-page { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "overview recent" "repo github" "status maintenance" "contribution contribution"; }
-    .maintenance-scroll { max-height: 15rem; }
+    .home-page { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "overview recent" "languages languages" "status maintenance" "contribution contribution"; }
+    .maintenance-scroll { max-height: 22rem; }
   }
 
   @container (min-width: 1040px) {
-    .home-page { width: calc(100% + 2em); margin-left: -1em; grid-template-columns: repeat(2, minmax(0, 1fr)) 320px; grid-template-areas: "overview recent status" "repo github maintenance" "contribution contribution contribution"; gap: .75rem; padding-inline: 0; }
+    .home-page { width: calc(100% + 2em); margin-left: -1em; grid-template-columns: repeat(2, minmax(0, 1fr)) 360px; grid-template-areas: "overview recent status" "languages languages maintenance" "contribution contribution contribution"; gap: .75rem; padding-inline: 0; }
+    .language-overview-panel { min-height: 390px; }
   }
 
   @container (min-width: 1120px) {
-    .home-page { grid-template-columns: repeat(2, minmax(0, 1fr)) 380px; gap: 1rem; }
+    .home-page { grid-template-columns: repeat(2, minmax(0, 1fr)) 440px; gap: 1rem; }
   }
 
   @media (max-width: 760px) {
     .home-page { padding-inline: .75rem; }
+    .language-overview-panel { padding: .95rem .8rem 1rem; }
+    .language-overview-grid { gap: .5rem; }
+    .language-overview-item :global(.lang-pie) { width: 112px; height: 112px; }
+    .home-status-panel { padding: 1rem; }
     .site-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
     .stat-card { min-height: 4.7rem; padding: .8rem .6rem; }
     .stat-number { font-size: 1.45rem; }
     .home-info-panel { padding: .85rem; }
+    .language-overview-panel { min-height: 0; }
   }
   @media (max-width: 420px) {
     .site-stats { gap: .6rem; }
     .stat-card { padding: .8rem .5rem; }
     .stat-number { font-size: 1.35rem; }
+    .language-overview-grid { grid-template-columns: 1fr; }
+    .language-overview-item + .language-overview-item { padding-top: .7rem; border-top: 1px solid color-mix(in srgb, var(--accent) 32%, var(--border)); border-left: 0; }
+    .contribution-panel :global(.gh-grid-outer) { justify-content: flex-start; }
+    .contribution-panel :global(.gh-scroll-area) { justify-content: flex-start; }
+    .contribution-panel { min-height: 250px; padding-inline: .8rem; }
   }
 </style>

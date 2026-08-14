@@ -4,7 +4,11 @@ import { GITHUB_USERNAME } from '../../consts';
 ---
 
 <div class="gh-contributions" id="gh-contributions" data-username={GITHUB_USERNAME}>
-  <div class="stat-label" style="text-align:center;margin-bottom:0.5rem;">我在GitHub上的贡献</div>
+  <div class="gh-contribution-heading">
+    <p class="status-eyebrow">CONTRIBUTION ACTIVITY</p>
+    <div class="stat-label">我在 GitHub 上的贡献</div>
+    <p>过去一年的公开贡献活跃度</p>
+  </div>
   <div class="gh-grid-wrapper" id="gh-grid-wrapper"></div>
 </div>
 
@@ -13,6 +17,23 @@ import { GITHUB_USERNAME } from '../../consts';
     margin: 3rem auto;
     max-width: 920px;
     text-align: center;
+  }
+
+  .gh-contribution-heading {
+    margin-bottom: 0.9rem;
+  }
+
+  .gh-contribution-heading .stat-label {
+    margin: 0.15rem 0 0;
+    color: var(--foreground);
+    font-size: 1.08rem;
+    font-weight: 650;
+  }
+
+  .gh-contribution-heading > p:last-child {
+    margin: 0.18rem 0 0;
+    color: var(--foreground-dark);
+    font-size: 0.7rem;
   }
 
   .gh-grid-wrapper {
@@ -102,6 +123,8 @@ import { GITHUB_USERNAME } from '../../consts';
   /* === 主网格 === */
   .gh-grid {
     display: grid;
+    width: max-content;
+    margin-inline: auto;
     grid-template-rows: auto repeat(7, 12px);
     grid-auto-flow: column;
     gap: 3px;
@@ -155,7 +178,8 @@ import { GITHUB_USERNAME } from '../../consts';
     gap: 3px;
     font-size: 0.7rem;
     color: var(--foreground-dark);
-    margin-top: 8px;
+    width: max-content;
+    margin: 8px auto 0;
   }
 
   .gh-legend-label {
@@ -194,6 +218,8 @@ import { GITHUB_USERNAME } from '../../consts';
   }
 
   @media (max-width: 760px) {
+    .gh-grid { margin-inline: 0; }
+    .gh-legend { margin-left: auto; margin-right: 0; }
     .gh-grid-wrapper {
       padding: 0.75rem;
     }
