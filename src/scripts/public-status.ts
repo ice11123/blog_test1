@@ -1,4 +1,8 @@
+import { requestStatusJson, type StatusRequestResult } from '../lib/publicStatusRequest';
+
 const REQUEST_TIMEOUT_MS = 15_000;
+const WORKER_TIMEOUT_MS = 4_500;
+const WORKER_ATTEMPTS = 3;
 const GITHUB_API = 'https://api.github.com';
 const REPOSITORY = 'ice11123/blog_test1';
 const BRANCH = 'main';
@@ -71,42 +75,77 @@ function initPublicStatus(): void {
     }
   };
 
+  const setWorkerStatus = (result: StatusRequestResult) => {
+    if (result.kind === 'ok' && result.body?.ok === true) {
+      setCard('worker', 'ok', 'Worker 与 KV 正常', `检测于 ${formatTime(result.body.checkedAt)} · 尝试 ${result.attempts} 次`);
+      return;
+    }
+    if (result.kind === 'network-error') {
+      const reason = result.reason === 'timeout' ? 'DNS 或网络连接超时' : '当前网络无法访问 Worker 域名';
+      setCard('worker', 'waiting', '当前网络无法直连 Worker', `${reason}，服务状态未确认`);
+      return;
+    }
+    if (result.kind === 'http-error') {
+      setCard('worker', 'error', `Worker 返回 HTTP ${result.status}`, '服务、KV 或跨域配置异常');
+    } else {
+      setCard('worker', 'error', 'Worker 状态异常', '未收到可识别的健康检查结果');
+    }
+  };
+
+  const renderRepositoryStatus = (result: StatusRequestResult) => {
+    if (result.kind !== 'ok' || result.body?.ok !== true) return false;
+    const body = result.body;
+    const stale = body.stale === true;
+    if (body.repository?.ok) {
+      const sha = String(body.repository.headSha || '').slice(0, 7);
+      setCard('repository', stale ? 'waiting' : 'ok', `${body.repository.owner}/${body.repository.name}`, `${body.repository.branch} · ${sha}${stale ? ' · 数据暂未刷新' : ''}`, body.repository.commitUrl || '');
+    } else {
+      setCard('repository', 'error', '仓库连接失败', '无法读取 main 分支');
+    }
+    const deployment = body.deployment || {};
+    if (deployment.status === 'success') setCard('deployment', stale ? 'waiting' : 'ok', '最近部署成功', formatTime(deployment.updatedAt), deployment.url || '');
+    else if (deployment.status === 'pending') setCard('deployment', 'waiting', '正在构建或排队', formatTime(deployment.updatedAt), deployment.url || '');
+    else if (deployment.status === 'unknown') setCard('deployment', 'waiting', '暂无部署记录', formatTime(deployment.updatedAt));
+    else setCard('deployment', 'error', '最近部署失败', formatTime(deployment.updatedAt), deployment.url || '');
+    return true;
+  };
+
   const refresh = async () => {
     setCard('frontend', 'ok', '首页脚本已初始化', '公开状态模块工作正常');
     if (!endpoint) {
       setCard('worker', 'error', '未配置 Worker API', '缺少 PUBLIC_ADMIN_SYNC_API_URL');
-      setCard('repository', 'waiting', '等待 Worker 配置', '目标：ice11123/blog_test1 main');
-      setCard('deployment', 'waiting', '等待仓库状态', '暂未读取 Pages 部署');
+      setCard('repository', 'checking', '正在尝试 GitHub 直连', 'Worker 未配置，启用公共只读降级');
+      setCard('deployment', 'checking', '正在尝试 GitHub 直连', 'Worker 未配置，启用公共只读降级');
+      await refreshFromGitHub();
       return;
     }
     ['worker', 'repository', 'deployment'].forEach((key) => setCard(key, 'checking', '正在检测', '请稍候'));
-    try {
-      const response = await fetch(`${endpoint}/api/public-status`, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok && !body.stale) throw new Error('status failed');
-      const stale = body.stale === true;
-      setCard('worker', stale ? 'waiting' : 'ok', stale ? '缓存状态可用' : 'Worker 与 KV 正常', `检测于 ${formatTime(body.checkedAt)}`);
-      if (body.repository?.ok) {
-        const sha = String(body.repository.headSha || '').slice(0, 7);
-        setCard('repository', stale ? 'waiting' : 'ok', `${body.repository.owner}/${body.repository.name}`, `${body.repository.branch} · ${sha}${stale ? ' · 数据暂未刷新' : ''}`, body.repository.commitUrl || '');
-      } else {
-        setCard('repository', 'error', '仓库连接失败', '无法读取 main 分支');
-      }
-      const deployment = body.deployment || {};
-      if (deployment.status === 'success') setCard('deployment', stale ? 'waiting' : 'ok', '最近部署成功', formatTime(deployment.updatedAt), deployment.url || '');
-      else if (deployment.status === 'pending') setCard('deployment', 'waiting', '正在构建或排队', formatTime(deployment.updatedAt), deployment.url || '');
-      else if (deployment.status === 'unknown') setCard('deployment', 'waiting', '暂无部署记录', formatTime(deployment.updatedAt));
-      else setCard('deployment', 'error', '最近部署失败', formatTime(deployment.updatedAt), deployment.url || '');
-    } catch {
-      setCard('worker', 'error', 'Worker 无法连接', '请稍后重新检测');
+    const [healthResult, publicResult] = await Promise.all([
+      requestStatusJson(`${endpoint}/health`, { attempts: WORKER_ATTEMPTS, timeoutMs: WORKER_TIMEOUT_MS }),
+      requestStatusJson(`${endpoint}/api/public-status`, { attempts: WORKER_ATTEMPTS, timeoutMs: WORKER_TIMEOUT_MS }),
+    ]);
+    setWorkerStatus(healthResult);
+    if (!renderRepositoryStatus(publicResult)) {
       setCard('repository', 'checking', '正在尝试 GitHub 直连', 'Worker 不可用，启用公共只读降级');
       setCard('deployment', 'checking', '正在尝试 GitHub 直连', 'Worker 不可用，启用公共只读降级');
       await refreshFromGitHub();
     }
   };
 
-  root.querySelector('[data-public-status-refresh]')?.addEventListener('click', () => { void refresh(); });
-  void refresh();
+  const refreshButton = root.querySelector<HTMLButtonElement>('[data-public-status-refresh]');
+  let refreshInFlight: Promise<void> | null = null;
+  const runRefresh = () => {
+    if (refreshInFlight) return refreshInFlight;
+    if (refreshButton) refreshButton.disabled = true;
+    refreshInFlight = refresh().finally(() => {
+      refreshInFlight = null;
+      if (refreshButton) refreshButton.disabled = false;
+    });
+    return refreshInFlight;
+  };
+
+  refreshButton?.addEventListener('click', () => { void runRefresh(); });
+  void runRefresh();
 }
 
 document.addEventListener('DOMContentLoaded', initPublicStatus);

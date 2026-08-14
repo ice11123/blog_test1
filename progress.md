@@ -56,3 +56,11 @@
 - 为避免 Worker 网络受限时仓库和 Pages 一并误报红色，新增 GitHub 公共 API 只读降级；Worker 仍保持真实红色，仓库与部署以黄色明确标注“GitHub 直连降级”。
 - Pages 工作流 #31713769780 对提交 `1a02599` 构建成功。最终线上复核时 Worker 网络恢复，四张公共状态卡均为绿色：Worker/KV 正常、仓库 HEAD 为 `1a02599`、Pages 最近部署成功。
 - 最终线上断点复核：1680×1050 主内容 760px、第三栏 280px且左右侧栏保留；390×844 为单列，右侧栏初始宽度 0，页面无横向溢出，搜索/主题独立工具行正常。
+
+## 2026-08-14｜首页公共状态自检误报修复
+
+- 复现 `workers.dev` 网络异常：DNS/链路不可达时请求约 8 秒超时，GitHub 公共 API 仍可正常读取。
+- 新增 `src/lib/publicStatusRequest.ts` 与回归测试，区分网络错误、超时和 HTTP 服务错误；网络错误自动重试，避免短暂波动立即报红。
+- 首页将 Worker `/health` 与 `/api/public-status` 分开检测；Worker 不可直连时显示黄色“当前网络无法直连 Worker”，仓库和 Pages 继续使用 GitHub 直连降级。
+- 本地浏览器实际验证通过：管理台前端绿色，Worker 黄色，仓库与 Pages 黄色且显示 `ice11123/blog_test1`、HEAD 短 SHA 和部署记录；重复检测按钮在请求期间禁用。
+- 质量门禁通过：`pnpm run check`、`pnpm run build`、`pnpm --dir worker test`（25/25）、`node --check worker/src/index.js`、`git diff --check`。
