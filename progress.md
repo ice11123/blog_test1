@@ -1,5 +1,14 @@
 # 维护日志
 
+## 2026-08-15｜本地仓库迁移到统一博客目录
+
+- 将博客仓库从旧的 Codex 工作目录迁移到 `D:\A Study files\AI_files\blog\blog_test1`，保留原 `.git`、完整提交历史、`main` 分支和 `origin` 配置。
+- 首次跨盘 `Move-Item` 被 `node_modules` 深层路径打断，形成 `.git` 和根文件已到目标目录、`src/public/scripts/worker` 暂留源目录的中间状态；随后逐目录合并剩余源码，目标仓库恢复为干净状态。
+- 目标仓库共核对 131 个 Git 跟踪文件，中文路径与动态路由文件均存在；`git status --porcelain` 为空。
+- 在新目录重新执行依赖安装并运行 `pnpm run check`，结果为 0 errors、0 warnings、0 hints。
+- `git fetch origin` 后确认本地 `HEAD` 与 `origin/main` 均为 `1052243bd2a8d8cb9a2cdcd8ee839f9ad1849a00`，远程地址仍为 `https://github.com/ice11123/blog_test1.git`。
+- 旧路径现在不再是 Git 仓库，仅剩未跟踪的生成依赖 `node_modules`；自动递归删除被执行环境策略阻止，不影响新目录和云端一致性。
+
 ## 2026-08-15｜补全近期迭代记录并固化日志流程
 
 - 审计最近 20 个 Git 提交与三类记录文件，确认代码实现没有未记录的功能分支，但部分“记录型提交”没有在正文中显式关联提交哈希。

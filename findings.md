@@ -1,5 +1,13 @@
 # 现状与排查结论
 
+## 2026-08-15｜仓库目录迁移排查结论
+
+- 跨盘直接移动包含 pnpm 符号链接和深层目录的仓库并不可靠：`Move-Item` 会先移动部分目录，随后在 `node_modules/.pnpm` 深层路径失败，造成工作树暂时分散在两个盘符。
+- 正确恢复方式是以 `.git` 所在位置作为目标仓库根目录，再将源路径中剩余的 Git 跟踪源码目录逐一合并；不能重新 `git init`，否则会破坏与云端的历史关联。
+- `git status`、`git rev-parse HEAD`、`git rev-parse origin/main` 和 `git remote get-url origin` 是迁移后判断本地/云端一致性的核心证据；仅查看文件是否存在不足以证明仓库一致。
+- pnpm 的 `node_modules` 是可再生且不受 Git 跟踪的本地状态。跨目录迁移后应以 `pnpm-lock.yaml` 重建，而不应把旧依赖目录视为仓库完整性的组成部分。
+- `git ls-files` 默认会转义中文路径，Windows 下核对中文文件时应使用 `git -c core.quotePath=false ls-files`，并用 `Test-Path -LiteralPath` 避免方括号路由被当作通配符。
+
 ## 2026-08-15｜迭代记录审计结论
 
 - 对照 `git log -20` 与 `progress.md`、`findings.md`、`src/content/maintenance.md` 后，发现缺口主要是“记录提交没有写出自身哈希”，不是功能实现完全没有记录。

@@ -39,3 +39,14 @@
 - [x] 补写首页公共状态诊断、首页仪表盘重构、部署验收、Beads 状态和截图归档的提交链路。
 - [x] 记录当前工作目录偏差，明确以后所有日志必须写入真实仓库根目录。
 - [x] 固化每轮工作流程：开始前更新 `task_plan.md`，每次排查发现写入 `findings.md`，每个阶段结束写入 `progress.md`，完成后同步 `maintenance.md` 和提交哈希。
+
+- 迁移后首次运行 `pnpm run check` 因跨盘移动造成 `node_modules` 不完整，pnpm 在无 TTY 下拒绝清理 modules；依赖目录属于未跟踪生成物，改为按 `pnpm-lock.yaml` 重新安装。
+- 清理旧路径中仅剩的 `node_modules` 时，命令被执行环境的递归删除策略阻止；旧路径已不含 `.git` 或任何项目源码，不影响新仓库使用。
+
+## 追加阶段：本地仓库目录迁移
+
+- [x] 验证原仓库工作区干净、分支为 `main`、远程为 `ice11123/blog_test1`。
+- [x] 将完整 `.git`、配置、源码、文档和构建资源迁移到 `D:\A Study files\AI_files\blog\blog_test1`。
+- [x] 修复跨盘移动被深层 `node_modules` 路径打断造成的源码/`.git` 分离状态。
+- [x] 按锁文件恢复依赖，并在新目录通过 `pnpm run check`。
+- [x] 执行 `git fetch origin`，确认本地 `HEAD` 与 `origin/main` 一致。
